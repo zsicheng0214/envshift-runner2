@@ -1,0 +1,26 @@
+name: swe-arch
+on:
+  workflow_dispatch:
+    inputs:
+      instances: { description: "SWE-bench 实例 id 的 JSON 数组", default: '["django__django-15037"]' }
+      archs: { description: "架构列表(JSON 数组): x86_64 / arm64", default: '["x86_64"]' }
+jobs:
+  gold:
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        instance: ${{ fromJSON(inputs.instances) }}
+        arch: ${{ fromJSON(inputs.archs) }}
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - name: official swebench package
+        run: pip install -q swebench==5.0.2 pyarrow
+      - name: gold patch on the official prebuilt ${{ matrix.arch }} image (no rebuild)
+        run: set -o pipefail; python swe_arm_gold.py "${{ matrix.instance }}" ${{ matrix.arch }} 2>&1 | tail -25
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: "official-${{ matrix.arch }}-${{ matrix.instance }}", path: result_*.json }

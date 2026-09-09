@@ -1,0 +1,11 @@
+{
+  "dependencies": {
+    "@deepseek-ai/dsh": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-agent-spine-demo": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-mcp-client": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-sdk-client": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-sdk-jsonrpc-demo": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-sdk-jsonrpc-server": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-tool-terminal": "^0.1.0-rc.6"
+  }
+}

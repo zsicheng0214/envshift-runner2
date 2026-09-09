@@ -1,0 +1,58 @@
+name: swe-agent
+on:
+  workflow_dispatch:
+    inputs:
+      instances: { description: "SWE-bench 实例 id 的 JSON 数组", default: '["django__django-13363"]' }
+      ubuntu: { description: "重建用的 ubuntu 版本", default: "22.04" }
+      archs: { description: "runner 列表(JSON 数组)", default: '["ubuntu-24.04-arm"]' }
+      timeout: { description: "agent 秒数", default: "1800" }
+      harness: { description: "openclaw | dsh", default: "openclaw" }
+      model: { description: "模型名(留空用默认 deepseek-v4-pro)", default: "deepseek-v4-pro" }
+jobs:
+  agent:
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        instance: ${{ fromJSON(inputs.instances) }}
+        os: ${{ fromJSON(inputs.archs) }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60   # 卡死的作业别长期占着并发槽(Windows 上 conda 解依赖卡过 3 小时)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22.19.0' }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - name: official swebench v4.0.4 builder
+        run: pip install -q "git+https://github.com/SWE-bench/SWE-bench@v4.0.4" docker pyarrow
+      - name: assemble DSH kit (harness=dsh)
+        if: ${{ inputs.harness == 'dsh' }}
+        shell: bash
+        working-directory: dsh
+        env: { NODE_OPTIONS: --max-old-space-size=4096 }
+        run: |
+          npm ci --no-audit --no-fund 2>&1 | tail -1
+          mkdir -p ../kit/node/bin && cp bridge.mjs cordis.yaml drive_dsh.py ../kit/ && cp -r node_modules ../kit/ && cp "$(which node)" ../kit/node/bin/node
+      - name: assemble OpenClaw kit for this architecture (harness=openclaw, same version as HarnessBench)
+        if: ${{ inputs.harness == 'openclaw' }}
+        shell: bash
+        run: |
+          npm install -g openclaw@2026.6.9 2>&1 | tail -1
+          mkdir -p ockit/node/bin ockit/lib && cp "$(which node)" ockit/node/bin/node && cp -r "$(npm root -g)/openclaw" ockit/lib/openclaw && cp oc_agent.sh oc_agent2.sh sanitize_testbed.sh netblock.sh ockit/
+          ockit/node/bin/node ockit/lib/openclaw/openclaw.mjs --version
+      - name: rebuild with official pipeline, run the model, official eval
+        shell: bash
+        env: { ENVSHIFT_API_KEY: "${{ secrets.ENVSHIFT_API_KEY }}" }
+        run: |
+          set -o pipefail
+          if [ "${{ inputs.harness }}" = "openclaw" ]; then ARM="--arm openclaw --ockit $PWD/ockit --sanitize"; else ARM="--arm agent --kit kit"; fi
+          python swe_rebuild_gold.py "${{ matrix.instance }}" "${{ inputs.ubuntu }}" rb $ARM --timeout ${{ inputs.timeout }} --model "${{ inputs.model }}" 2>&1 | grep -v "^INFO" | grep -E "RESULT|FAIL|DEAD-RUN|agent rc|openclaw rc|GATEWAY|容器内|构建耗时"
+      - name: encrypt artifacts (公开仓:轨迹不能明文上传)
+        if: always()
+        shell: bash
+        env: { ARTIFACT_PASS: "${{ secrets.ARTIFACT_PASS }}" }
+        run: tar czf out.tgz rebuild_*.json eval_*.log agent_* 2>/dev/null || true; openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:ARTIFACT_PASS -in out.tgz -out out.tgz.enc && rm -f out.tgz
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: "agent-${{ matrix.os }}-${{ matrix.instance }}", path: out.tgz.enc }

@@ -1,0 +1,63 @@
+name: swe-native
+on:
+  workflow_dispatch:
+    inputs:
+      instances: { description: "SWE-bench 实例 id 的 JSON 数组", default: '["django__django-13363"]' }
+      oslist: { description: "runner 列表(JSON 数组)", default: '["macos-14","windows-2022"]' }
+      arm: { description: "gold | openclaw", default: "gold" }
+      model: { description: "模型名(留空用默认 deepseek-v4-pro)", default: "deepseek-v4-pro" }
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        instance: ${{ fromJSON(inputs.instances) }}
+        os: ${{ fromJSON(inputs.oslist) }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45   # 卡死的作业别长期占着并发槽(Windows 上 conda 解依赖卡过 3 小时)
+    env: { PYTHONUTF8: "1", PYTHONIOENCODING: "utf-8" }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: conda-incubator/setup-miniconda@v3
+        with: { miniconda-version: "latest", auto-activate-base: true, activate-environment: "" }
+      - name: GNU sed on macOS (官方安装脚本是 Linux 写法,苹果自带 BSD sed 语义不同)
+        if: runner.os == 'macOS'
+        run: |
+          brew install gnu-sed >/dev/null 2>&1 || brew list gnu-sed >/dev/null
+          G="$(brew --prefix gnu-sed)/libexec/gnubin"
+          test -x "$G/sed" || { echo "GNU sed 没装上: $G"; exit 1; }
+          echo "$G/sed --version:"; "$G/sed" --version | head -1
+          echo "$G" >> $GITHUB_PATH
+          echo "ENVSHIFT_GNUBIN=$G" >> $GITHUB_ENV   # 登录 shell 会重排 PATH,脚本内部要再置一次
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - name: official swebench v4.0.4 (for make_test_spec + parsers)
+        shell: bash
+        run: pip install -q "git+https://github.com/SWE-bench/SWE-bench@v4.0.4" pyarrow
+      - uses: actions/setup-node@v4
+        if: ${{ inputs.arm == 'openclaw' }}
+        with: { node-version: '22.19.0' }
+      - name: native OpenClaw (npm -g, same version as HarnessBench)
+        if: ${{ inputs.arm == 'openclaw' }}
+        shell: bash
+        run: npm install -g openclaw@2026.6.9 2>&1 | tail -1 && openclaw --version
+      - name: native run (official scripts, paths adapted only)
+        shell: bash
+        env: { ENVSHIFT_API_KEY: "${{ secrets.ENVSHIFT_API_KEY }}" }
+        run: |
+          set -o pipefail
+          export CONDA="$CONDA"
+          python swe_native_gold.py "${{ matrix.instance }}" --arm ${{ inputs.arm }} --model "${{ inputs.model }}" 2>&1 | grep -v "^INFO" | tail -14
+      - name: encrypt agent artifacts
+        if: ${{ always() && inputs.arm == 'openclaw' }}
+        shell: bash
+        env: { ARTIFACT_PASS: "${{ secrets.ARTIFACT_PASS }}" }
+        run: |
+          tar czf oc_out.tgz oc_out 2>/dev/null || true
+          OPENSSL=$(command -v openssl || echo /usr/bin/openssl)
+          "$OPENSSL" enc -aes-256-cbc -pbkdf2 -salt -pass env:ARTIFACT_PASS -in oc_out.tgz -out native_oc.tgz.enc || echo "encrypt failed (non-fatal)"
+          rm -rf oc_out oc_out.tgz 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: "native-${{ matrix.os }}-${{ matrix.instance }}", path: "native_*" }

@@ -1,0 +1,18 @@
+name: probe
+on:
+  workflow_dispatch:
+    inputs:
+      oslist: { description: "runner 列表(JSON 数组)", default: '["ubuntu-24.04","ubuntu-24.04-arm","windows-2022","windows-11-arm","macos-14"]' }
+jobs:
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(inputs.oslist) }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - shell: bash
+        run: python profile_runner.py

@@ -1,0 +1,37 @@
+name: xos-tasks
+on:
+  workflow_dispatch:
+    inputs:
+      os: { description: "runner(可选 ubuntu-24.04 / ubuntu-24.04-arm / windows-2022 / windows-11-arm / macos-14)", default: "macos-14" }
+      arms: { description: "臂(逗号分隔)", default: "oracle,naive" }
+      tasks: { description: "任务 JSON 数组", default: '["E3-archive-audit","E4-vault-compliance","E5-retention-plan","E6-contact-merge","E7-publish-shared","E8-report-extend","E9-latest-extend","E10-dupes-extend","E11-export-extend","E12-publish-extend"]' }
+jobs:
+  run:
+    strategy:
+      fail-fast: false
+      matrix:
+        task: ${{ fromJSON(inputs.tasks) }}
+    runs-on: ${{ inputs.os }}
+    env: { PYTHONUTF8: "1", PYTHONIOENCODING: "utf-8" }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: restore task materials
+        shell: bash
+        env:
+          TASKS_B64_1: ${{ secrets.TASKS_B64_1 }}
+          TASKS_B64_2: ${{ secrets.TASKS_B64_2 }}
+        run: python restore_tasks.py
+      - name: prepare /data /app
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then ES2_ROOT="$USERPROFILE/es2"; else ES2_ROOT="$HOME/es2"; fi
+          echo "ES2_ROOT=$ES2_ROOT" >> "$GITHUB_ENV"; mkdir -p "$ES2_ROOT/data" "$ES2_ROOT/app" && python profile_runner.py
+      - name: self-check arms
+        shell: bash
+        env: { XOS_CELL: "${{ inputs.os }}-baseline" }
+        run: |
+          IFS=, read -ra ARMS <<< "${{ inputs.arms }}"
+          [ "$RUNNER_OS" = "Windows" ] || HM=$(stat -f %Lp "$HOME" 2>/dev/null || stat -c %a "$HOME")
+          for A in "${ARMS[@]}"; do [ -z "${HM:-}" ] || chmod "$HM" "$HOME"; python xos_run_one.py --task ${{ matrix.task }} --arm "$A" --data "$ES2_ROOT/data" --app "$ES2_ROOT/app" --out "out/${{ matrix.task }}-$A" $( [ "$RUNNER_OS" = "Windows" ] || echo --sudo-verify ) | tail -1; done

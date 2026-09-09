@@ -1,0 +1,56 @@
+name: xos-agent
+on:
+  workflow_dispatch:
+    inputs:
+      os: { description: "runner(可选 ubuntu-24.04 / ubuntu-24.04-arm / windows-2022 / windows-11-arm / macos-14)", default: "macos-14" }
+      tasks: { description: "任务 JSON 数组", default: '["E3-archive-audit","E4-vault-compliance","E5-retention-plan","E6-contact-merge","E7-publish-shared","E8-report-extend","E9-latest-extend","E10-dupes-extend","E11-export-extend","E12-publish-extend"]' }
+      timeout: { description: "agent 秒数", default: "1500" }
+jobs:
+  agent:
+    strategy:
+      fail-fast: false
+      matrix:
+        task: ${{ fromJSON(inputs.tasks) }}
+    runs-on: ${{ inputs.os }}
+    env: { PYTHONUTF8: "1", PYTHONIOENCODING: "utf-8" }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22.17.0' }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: restore task materials (from secrets, never committed)
+        shell: bash
+        env:
+          TASKS_B64_1: ${{ secrets.TASKS_B64_1 }}
+          TASKS_B64_2: ${{ secrets.TASKS_B64_2 }}
+        run: python restore_tasks.py
+      - name: install pinned DSH
+        shell: bash
+        working-directory: dsh
+        env: { NODE_OPTIONS: --max-old-space-size=4096 }
+        run: npm ci --no-audit --no-fund 2>&1 | tail -1
+      - name: prepare roots
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then ES2_ROOT="$USERPROFILE/es2"; else ES2_ROOT="$HOME/es2"; fi
+          echo "ES2_ROOT=$ES2_ROOT" >> "$GITHUB_ENV"; mkdir -p "$ES2_ROOT/data" "$ES2_ROOT/app" && python profile_runner.py
+      - name: real agent
+        shell: bash
+        env:
+          XOS_CELL: "${{ inputs.os }}-baseline"
+          ENVSHIFT_API_KEY: ${{ secrets.ENVSHIFT_API_KEY }}
+          DSH_MAX_TOKENS: "131072"
+        run: |
+          python xos_run_one.py --task ${{ matrix.task }} --arm agent --data "$ES2_ROOT/data" --app "$ES2_ROOT/app" --out "out/${{ matrix.task }}-agent" --timeout ${{ inputs.timeout }} $( [ "$RUNNER_OS" = "Windows" ] || echo --sudo-verify ) | tail -1
+      - name: encrypt artifacts (public repo:产物含题面与轨迹,不能明文上传)
+        if: always()
+        shell: bash
+        env: { ARTIFACT_PASS: "${{ secrets.ARTIFACT_PASS }}" }
+        run: |
+          tar czf out.tgz out 2>/dev/null || true
+          openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:ARTIFACT_PASS -in out.tgz -out out.tgz.enc
+          rm -f out.tgz
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: "enc-${{ inputs.os }}-${{ matrix.task }}", path: out.tgz.enc }

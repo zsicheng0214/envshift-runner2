@@ -1,0 +1,33 @@
+name: swe-rebuild
+on:
+  workflow_dispatch:
+    inputs:
+      instances: { description: "SWE-bench 实例 id 的 JSON 数组", default: '["django__django-13363"]' }
+      ubuntu: { description: "重建用的 ubuntu 版本", default: "22.04" }
+      archs: { description: "runner 列表(JSON 数组)", default: '["ubuntu-24.04-arm","ubuntu-24.04"]' }
+jobs:
+  rebuild:
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        instance: ${{ fromJSON(inputs.instances) }}
+        os: ${{ fromJSON(inputs.archs) }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45   # 卡死的作业别长期占着并发槽(Windows 上 conda 解依赖卡过 3 小时)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - name: official swebench v4.0.4 builder
+        run: pip install -q "git+https://github.com/SWE-bench/SWE-bench@v4.0.4" docker pyarrow
+      - name: rebuild with official pipeline, then gold + official eval
+        run: set -o pipefail; python swe_rebuild_gold.py "${{ matrix.instance }}" "${{ inputs.ubuntu }}" rb 2>&1 | grep -v "^INFO" | tail -40
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: "rebuild-${{ matrix.os }}-${{ matrix.instance }}"
+          path: |
+            rebuild_*.json
+            eval_*.log
+            logs/build_images/**/*.log
