@@ -7,6 +7,7 @@ on:
       archs: { description: "runner 列表(JSON 数组)", default: '["ubuntu-24.04-arm"]' }
       timeout: { description: "agent 秒数", default: "1800" }
       harness: { description: "openclaw | dsh", default: "openclaw" }
+      official: { description: "true=用官方预制镜像当基准格,不重建", default: "false" }
       model: { description: "模型名(留空用默认 deepseek-v4-pro)", default: "deepseek-v4-pro" }
 jobs:
   agent:
@@ -46,7 +47,8 @@ jobs:
         env: { ENVSHIFT_API_KEY: "${{ secrets.ENVSHIFT_API_KEY }}" }
         run: |
           set -o pipefail
-          if [ "${{ inputs.harness }}" = "openclaw" ]; then ARM="--arm openclaw --ockit $PWD/ockit --sanitize"; else ARM="--arm agent --kit kit"; fi
+          OFF=""; [ "${{ inputs.official }}" = "true" ] && OFF="--official"
+          if [ "${{ inputs.harness }}" = "openclaw" ]; then ARM="--arm openclaw --ockit $PWD/ockit --sanitize $OFF"; else ARM="--arm agent --kit kit"; fi
           python swe_rebuild_gold.py "${{ matrix.instance }}" "${{ inputs.ubuntu }}" rb $ARM --timeout ${{ inputs.timeout }} --model "${{ inputs.model }}" 2>&1 | grep -v "^INFO" | grep -E "RESULT|FAIL|DEAD-RUN|agent rc|openclaw rc|GATEWAY|容器内|构建耗时"
       - name: encrypt artifacts (公开仓:轨迹不能明文上传)
         if: always()

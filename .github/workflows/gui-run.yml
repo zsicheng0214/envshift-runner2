@@ -1,0 +1,68 @@
+name: gui-run
+# GUI 题 × 三系统:装 Chrome/VS Code(+Linux 虚拟显示)→ 准备初始状态 → OpenClaw → 独立评分器。
+on:
+  workflow_dispatch:
+    inputs:
+      tasks: { description: "gui_tasks.json 里的序号列表(JSON 数组,1 起)", default: '[1]' }
+      oslist: { description: "runner 列表(JSON 数组)", default: '["ubuntu-24.04","macos-15","windows-2022"]' }
+      arm: { description: "openclaw | null(只验初始状态与判分)", default: "openclaw" }
+      model: { description: "模型名", default: "deepseek-v4-pro" }
+jobs:
+  gui:
+    strategy:
+      fail-fast: false
+      matrix:
+        task: ${{ fromJSON(inputs.tasks) }}
+        os: ${{ fromJSON(inputs.oslist) }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env: { PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+
+      - name: 装 Chrome + VS Code
+        shell: bash
+        run: |
+          set -x
+          case "${{ runner.os }}" in
+            Linux)
+              sudo apt-get update -qq
+              sudo apt-get install -y -qq google-chrome-stable xvfb x11-utils || { wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && sudo apt-get install -y -qq ./google-chrome-stable_current_amd64.deb xvfb x11-utils; }
+              sudo snap install code --classic 2>/dev/null || { wget -qO code.deb "https://update.code.visualstudio.com/latest/linux-deb-x64/stable" && sudo apt-get install -y -qq ./code.deb; }
+              Xvfb :99 -screen 0 1920x1080x24 & sleep 3; echo "DISPLAY=:99" >> $GITHUB_ENV ;;
+            macOS)
+              brew install --cask google-chrome 2>/dev/null || true
+              brew install --cask visual-studio-code 2>/dev/null || true
+              echo "/Applications/Visual Studio Code.app/Contents/Resources/app/bin" >> $GITHUB_PATH ;;
+            Windows)
+              choco install googlechrome -y --no-progress --ignore-checksums || true
+              choco install vscode -y --no-progress || true
+              echo "C:\Program Files\Microsoft VS Code\bin" >> $GITHUB_PATH ;;
+          esac
+
+      - name: OpenClaw(与代码题同版本)
+        if: inputs.arm == 'openclaw'
+        run: npm install -g openclaw@2026.6.9 2>&1 | tail -1 && openclaw --version
+
+      - name: 跑题
+        shell: bash
+        env: { ENVSHIFT_API_KEY: "${{ secrets.ENVSHIFT_API_KEY }}" }
+        run: |
+          python gui_run.py "${{ matrix.task }}" --arm ${{ inputs.arm }} --model "${{ inputs.model }}" 2>&1 | tail -30
+
+      - name: 打包会话记录
+        if: always()
+        shell: bash
+        env: { ARTIFACT_PASS: "${{ secrets.ARTIFACT_PASS }}" }
+        run: |
+          tar czf gui_out.tgz gui_out 2>/dev/null || true
+          OPENSSL=$(command -v openssl || echo /usr/bin/openssl)
+          [ -f gui_out.tgz ] && "$OPENSSL" enc -aes-256-cbc -pbkdf2 -salt -pass env:ARTIFACT_PASS -in gui_out.tgz -out gui_oc.tgz.enc || true
+          rm -rf gui_out gui_out.tgz 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: "gui-${{ matrix.os }}-t${{ matrix.task }}", path: "gui_*" }

@@ -5,6 +5,7 @@
 import argparse, inspect, json, os, platform, subprocess, sys, tempfile, pathlib, time, urllib.request
 ap = argparse.ArgumentParser(); ap.add_argument("instance"); ap.add_argument("ubuntu"); ap.add_argument("tag"); ap.add_argument("--jsonl", default="")
 ap.add_argument("--arm", default="gold", choices=["gold", "agent", "openclaw", "null"])
+ap.add_argument("--official", action="store_true", help="不重建,直接用 SWE-bench 官方预制镜像(基准格);其余流程完全不变")
 ap.add_argument("--sanitize", action="store_true", help="起跑前修剪 git 历史+屏蔽 github/pypi+禁 web 工具(oc_agent2.sh)"); ap.add_argument("--ockit", default=os.path.expanduser("~/ockit"))
 ap.add_argument("--kit", default=os.path.expanduser("~/tbkit"), help="含 bridge.mjs/cordis.yaml/drive_dsh.py/node_modules/node/bin/node 的目录")
 ap.add_argument("--model", default="deepseek-v4-pro"); ap.add_argument("--base", default="https://api.llmgateway.io/v1"); ap.add_argument("--timeout", type=int, default=1800)
@@ -48,7 +49,15 @@ print("镜像名:", ts.base_image_key, "|", ts.env_image_key, "|", ts.instance_i
 from swebench.harness import docker_build as DB
 import logging; logging.basicConfig(level=logging.WARNING)
 t0 = time.time()
-DB.build_instance_images(client=client, dataset=[row], force_rebuild=os.environ.get("FORCE_REBUILD", "0") == "1", max_workers=2, namespace=None, tag=a.tag)
+if a.official:
+    # 基准格:官方预制镜像(冻结于 2023-24 年),全世界报分数的口径。名字里 __ 要换成 _1776_
+    img_off = f"swebench/sweb.eval.{ts.arch}.{a.instance.replace('__', '_1776_')}:latest"
+    print("官方预制镜像:", img_off)
+    if sh(f"docker pull {img_off}").returncode != 0:
+        print(f"BUILD-FAIL {a.instance}: 官方镜像拉不下来 {img_off}"); sys.exit(6)
+    sh(f"docker tag {img_off} {ts.instance_image_key}")
+else:
+    DB.build_instance_images(client=client, dataset=[row], force_rebuild=os.environ.get("FORCE_REBUILD", "0") == "1", max_workers=2, namespace=None, tag=a.tag)
 print("构建耗时 %ds" % (time.time() - t0))
 img = ts.instance_image_key
 if not client.images.list(name=img):   # 构建失败就明说,别让后面的 OS 断言误报
@@ -63,7 +72,7 @@ c = f"swe-rebuild-{os.getpid()}"
 sh(f"docker rm -f {c}"); sh(f"docker run -d --name {c} " + (f"-v {a.ockit}:/opt/ockit:ro " if a.arm == "openclaw" else "") + f"{img} sleep {a.timeout + 3600}")
 print("容器内:", sh(f"docker exec {c} sh -c 'uname -m; . /etc/os-release; echo $PRETTY_NAME'").stdout.strip().replace("\n", " | "))
 os_actual = sh(f"docker exec {c} sh -c '. /etc/os-release; echo $VERSION_ID'").stdout.strip()
-if os_actual != a.ubuntu:   # ★硬断言:环境=X 必须从容器里读回来,标签不算数
+if os_actual != a.ubuntu and not a.official:   # ★硬断言:环境=X 必须从容器里读回来,标签不算数(官方镜像的版本由官方定,放行但记录)
     print(f"OS-MISMATCH requested={a.ubuntu} actual={os_actual}"); sh(f"docker rm -f {c}"); sys.exit(7)
 t = pathlib.Path(tempfile.mkdtemp())
 (t / "patch.diff").write_text(row["patch"], encoding="utf-8"); (t / "eval.sh").write_text(row["eval_script"], encoding="utf-8")
