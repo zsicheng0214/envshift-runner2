@@ -112,9 +112,15 @@ elif a.arm == "openclaw":
     token = os.urandom(24).hex()
     env = dict(os.environ, HOME=str(oh), USERPROFILE=str(oh), OPENCLAW_STATE_DIR=str(st), OPENCLAW_CONFIG_PATH=str(st / "openclaw.json"), OPENCLAW_CONFIG=str(st / "openclaw.json"),
                OPENCLAW_WORKSPACE_DIR=ws, OPENCLAW_GATEWAY_TOKEN=token, OPENCLAW_EXEC_SHELL_SNAPSHOT="off", NO_PROXY="127.0.0.1,localhost", no_proxy="127.0.0.1,localhost")
-    oc = shutil.which("openclaw") or shutil.which("openclaw.cmd") or "openclaw"
+    # ★Windows 上 `openclaw` 是 .cmd 壳,多行题面在第一个换行被 cmd.exe 截断 → 改用 node 直接跑 openclaw.mjs(三系统同一路径)
+    oc = None
+    _node = shutil.which("node")
+    for _r in subprocess.run(["npm", "root", "-g"], capture_output=True, text=True, shell=(os.name == "nt")).stdout.split():
+        _m = pathlib.Path(_r) / "openclaw" / "openclaw.mjs"
+        if _node and _m.exists(): oc = [_node, str(_m)]; break
+    if oc is None: oc = [shutil.which("openclaw") or shutil.which("openclaw.cmd") or "openclaw"]; print("⚠ 没找到 openclaw.mjs,退回", oc)
     prompt = "下面是一个真实仓库里的 issue。仓库已经在 " + ws + ",请直接修改源码解决它。\n只改实现代码,不要改测试文件。完成后不需要提交,把文件改好即可。\n\n" + (row["problem_statement"] or "")
-    gw = subprocess.Popen([oc, "gateway", "run", "--bind", "loopback", "--port", "18789", "--auth", "token"], stdout=open(outd / "gateway.log", "w"), stderr=subprocess.STDOUT, env=env, cwd=str(TB))
+    gw = subprocess.Popen(oc + ["gateway", "run", "--bind", "loopback", "--port", "18789", "--auth", "token"], stdout=open(outd / "gateway.log", "w"), stderr=subprocess.STDOUT, env=env, cwd=str(TB))
     import socket
     ok = False
     for _ in range(90):
@@ -123,7 +129,7 @@ elif a.arm == "openclaw":
         except OSError: time.sleep(1)
     if not ok: print("GATEWAY-NOT-READY", open(outd / "gateway.log", errors="replace").read()[-400:].replace("\n", " ")); gw.kill(); sys.exit(3)
     ta = time.time()
-    ag = subprocess.run([oc, "agent", "--session-id", f"envshift-{os.getpid()}", "--message", prompt, "--thinking", "off", "--timeout", str(a.timeout), "--json"],
+    ag = subprocess.run(oc + ["agent", "--session-id", f"envshift-{os.getpid()}", "--message", prompt, "--thinking", "off", "--timeout", str(a.timeout), "--json"],
                         capture_output=True, text=True, env=env, cwd=str(TB), timeout=a.timeout + 300)
     (outd / "agent.json").write_text(ag.stdout, encoding="utf-8"); (outd / "agent.stderr").write_text(ag.stderr, encoding="utf-8")
     print("openclaw agent rc", ag.returncode, "elapsed", int(time.time() - ta), "s |", ag.stdout[:200].replace("\n", " "))

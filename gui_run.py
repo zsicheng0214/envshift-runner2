@@ -67,9 +67,20 @@ def chrome_start(url="about:blank"):
 
 
 def chrome_stop():
-    if SYS == "Windows": subprocess.run(["taskkill", "/F", "/IM", "chrome.exe"], capture_output=True)
-    elif SYS == "Darwin": subprocess.run(["pkill", "-f", "Google Chrome"], capture_output=True)
-    else: subprocess.run(["pkill", "-f", "chrome"], capture_output=True)
+    """三系统一律先温和退出(让 Chrome 把偏好/书签写盘),等不到再强杀。
+    ★曾经 Windows 用 taskkill /F 直接强杀而 Unix 用 SIGTERM——不对称,会把 Windows 上 agent 在内存里改好的东西丢掉。"""
+    if SYS == "Windows":
+        subprocess.run(["taskkill", "/IM", "chrome.exe"], capture_output=True)          # WM_CLOSE,温和
+        for _ in range(15):
+            if subprocess.run(["tasklist", "/FI", "IMAGENAME eq chrome.exe"], capture_output=True, text=True).stdout.count("chrome.exe") == 0: break
+            time.sleep(1)
+        subprocess.run(["taskkill", "/F", "/IM", "chrome.exe"], capture_output=True)    # 兜底
+    else:
+        subprocess.run(["pkill", "-TERM", "-f", "Google Chrome" if SYS == "Darwin" else "chrome"], capture_output=True)
+        for _ in range(15):
+            if subprocess.run(["pgrep", "-f", "Google Chrome" if SYS == "Darwin" else "chrome"], capture_output=True).returncode != 0: break
+            time.sleep(1)
+        subprocess.run(["pkill", "-KILL", "-f", "Google Chrome" if SYS == "Darwin" else "chrome"], capture_output=True)
     time.sleep(3)   # 等偏好/书签落盘
 
 
@@ -89,7 +100,8 @@ def setup(s):
         p = G.chrome_profile() / "Preferences"; d = G._load_json(p) or {}
         for k, v in s["inject_prefs"].items(): d.setdefault(k, {}).update(v) if isinstance(v, dict) else d.__setitem__(k, v)
         p.parent.mkdir(parents=True, exist_ok=True); p.write_text(json.dumps(d), encoding="utf-8")
-        log("已注入偏好:", s["inject_prefs"])
+        back = G._load_json(p) or {}
+        log("已注入偏好:", s["inject_prefs"], "| 回读:", {k: G._dig(back, k) for k in ("session.restore_on_startup", "session.startup_urls")})
     for f in s.get("download_to_desktop", []):
         url = f.get("url") if isinstance(f, dict) else f
         if not url: continue
@@ -115,6 +127,17 @@ def setup(s):
         log("关掉标签", len(victims), "个")
 
 
+def openclaw_cmd():
+    """★Windows 上 `openclaw` 是 .cmd 批处理壳,参数经 cmd.exe 解析,题面在第一个换行处被截断(第一轮 15 道全中招)。
+    统一改成 node 直接跑 openclaw.mjs,三系统同一调用路径。"""
+    node = shutil.which("node")
+    for cand in [pathlib.Path(p) for p in subprocess.run(["npm", "root", "-g"], capture_output=True, text=True, shell=(SYS == "Windows")).stdout.split()]:
+        mjs = cand / "openclaw" / "openclaw.mjs"
+        if node and mjs.exists(): return [node, str(mjs)]
+    exe = shutil.which("openclaw") or shutil.which("openclaw.cmd") or "openclaw"
+    log("⚠ 没找到 openclaw.mjs,退回", exe); return [exe]
+
+
 # ── agent ───────────────────────────────────────────────────────────────────
 def run_agent(instruction):
     key = os.environ.get("ENVSHIFT_API_KEY", "")
@@ -126,15 +149,16 @@ def run_agent(instruction):
            "gateway": {"mode": "local", "bind": "loopback", "port": 18789, "auth": {"mode": "token"}},
            "tools": {"deny": ["web_search", "web_fetch", "browser"]}}
     (st / "openclaw.json").write_text(json.dumps(cfg), encoding="utf-8")
-    env = dict(os.environ, HOME=str(oh), USERPROFILE=str(oh), OPENCLAW_STATE_DIR=str(st), OPENCLAW_CONFIG_PATH=str(st / "openclaw.json"),
+    # ★不覆盖 HOME/USERPROFILE:agent 起的 code/Chrome 会照 HOME 落盘,覆盖了它们就写进假家目录、判分器看不到(第一轮 VS Code 两道就是这么挂的)
+    env = dict(os.environ, OPENCLAW_STATE_DIR=str(st), OPENCLAW_CONFIG_PATH=str(st / "openclaw.json"),
                OPENCLAW_CONFIG=str(st / "openclaw.json"), OPENCLAW_WORKSPACE_DIR=str(ws), OPENCLAW_GATEWAY_TOKEN=os.urandom(24).hex(),
                OPENCLAW_EXEC_SHELL_SNAPSHOT="off", NO_PROXY="127.0.0.1,localhost", no_proxy="127.0.0.1,localhost")
     env.setdefault("DISPLAY", ":99")
-    oc = shutil.which("openclaw") or shutil.which("openclaw.cmd") or "openclaw"
+    oc = openclaw_cmd()
     # 题面 = 原指令 + 一句环境说明,三系统一字不差;不告诉它端口、路径、命令,让它自己发现
     prompt = ("You are operating a real desktop computer. Google Chrome is currently running on this machine, "
               "and Visual Studio Code is installed. Complete the following request for the user, then stop.\n\n" + instruction)
-    gw = subprocess.Popen([oc, "gateway", "run", "--bind", "loopback", "--port", "18789", "--auth", "token"],
+    gw = subprocess.Popen(oc + ["gateway", "run", "--bind", "loopback", "--port", "18789", "--auth", "token"],
                           stdout=open(outd / "gateway.log", "w"), stderr=subprocess.STDOUT, env=env, cwd=str(ws))
     import socket
     for _ in range(90):
@@ -142,7 +166,7 @@ def run_agent(instruction):
         try: socket.create_connection(("127.0.0.1", 18789), timeout=1).close(); break
         except OSError: time.sleep(1)
     t0 = time.time()
-    ag = subprocess.run([oc, "agent", "--session-id", f"gui-{os.getpid()}", "--message", prompt, "--thinking", "off",
+    ag = subprocess.run(oc + ["agent", "--session-id", f"gui-{os.getpid()}", "--message", prompt, "--thinking", "off",
                          "--timeout", str(a.timeout), "--json"], capture_output=True, text=True, env=env, cwd=str(ws), timeout=a.timeout + 300)
     (outd / "agent.json").write_text(ag.stdout, encoding="utf-8"); (outd / "agent.stderr").write_text(ag.stderr, encoding="utf-8")
     gw.kill()
