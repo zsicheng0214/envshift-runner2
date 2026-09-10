@@ -60,11 +60,16 @@ def vscode_ext_dir():
 
 
 def vscode_settings():
+    """VS Code 用户设置文件:三系统位置不同;Linux 上还随安装方式不同——snap 装的 VS Code 被沙箱隔离,
+    设置在 ~/snap/code/current/.config/Code/User/,deb 装的在 ~/.config/Code/User/。哪个存在用哪个。"""
     if SYS == "Darwin":
         return HOME / "Library/Application Support/Code/User/settings.json"
     if SYS == "Windows":
         return pathlib.Path(os.environ.get("APPDATA", HOME / "AppData/Roaming")) / "Code/User/settings.json"
-    return HOME / ".config/Code/User/settings.json"
+    cands = [HOME / ".config/Code/User/settings.json", HOME / "snap/code/current/.config/Code/User/settings.json"]
+    for c in cands:
+        if c.exists(): return c
+    return cands[0]
 
 
 def _load_json(p):
