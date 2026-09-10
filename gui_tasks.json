@@ -212,27 +212,19 @@
   "note": ""
  },
  {
-  "id": "3299584d-8f11-4457-bf4c-ce98f7600250",
-  "src": "chrome__3299584d-8f11-4457-bf4c-ce98f7600250.json",
-  "app": "chrome",
-  "instruction": "On my surface pro whenever I launch Chrome it always opens \"funbrain.com.\" I don't want this. I cleared my cache but it still happens. What should I do?",
-  "setup": {
-   "inject_prefs": {
-    "session": {
-     "restore_on_startup": 4,
-     "startup_urls": [
-      "https://www.funbrain.com/"
-     ]
-    }
-   }
-  },
+  "id": "9d425400-e9b2-4424-9a4b-d4c7abac4140",
+  "src": "vs_code__9d425400-e9b2-4424-9a4b-d4c7abac4140.json",
+  "app": "vs_code",
+  "instruction": "I want to make the tabs wrapped over multiple lines when exceeding available space, please help modify the setting of VS Code.",
+  "setup": {},
   "grade": {
-   "func": "startup_page_cleared",
+   "func": "check_json_settings",
    "args": {
-    "bad": "funbrain"
+    "key": "workbench.editor.wrapTabs",
+    "expected": true
    }
   },
-  "note": "先把启动页设成 funbrain"
+  "note": "替换原第 13 道(启动页注入在 mac/Windows 被 Chrome 偏好保护重置,坏状态自己消失导致假通过);VS Code 设置题无此问题"
  },
  {
   "id": "6766f2b8-8a72-417f-a9e5-56fcaa735837",
