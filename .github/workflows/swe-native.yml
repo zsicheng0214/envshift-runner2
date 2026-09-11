@@ -21,6 +21,10 @@ jobs:
     env: { PYTHONUTF8: "1", PYTHONIOENCODING: "utf-8" }
     steps:
       - uses: actions/checkout@v4
+      - name: Windows 行尾必须保持 LF(否则 SWE-bench 的 LF 补丁在 CRLF 文件上 git apply 失败,整套测试全零)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: git config --global core.autocrlf false && git config --global core.eol lf && echo "autocrlf=$(git config --global core.autocrlf)"
       - uses: conda-incubator/setup-miniconda@v3
         with: { miniconda-version: "latest", auto-activate-base: true, activate-environment: "" }
       - name: GNU sed on macOS (官方安装脚本是 Linux 写法,苹果自带 BSD sed 语义不同)
