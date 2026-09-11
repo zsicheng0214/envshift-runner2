@@ -10,6 +10,7 @@ on:
       official: { description: "true=用官方预制镜像当基准格,不重建", default: "false" }
       model: { description: "模型名(留空用默认 deepseek-v4-pro)", default: "deepseek-v4-pro" }
       oc_version: { description: "OpenClaw 版本(默认 2026.6.9,与既有数据同版本)", default: "2026.6.9" }
+      node_version: { description: "Node 版本(★须满足所选 OpenClaw 的 engines:6.9 要 >=22.19,9.4 要 >=24.16)", default: "22.19.0" }
 jobs:
   agent:
     strategy:
@@ -23,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '22.19.0' }
+        with: { node-version: '${{ inputs.node_version }}' }
       - uses: actions/setup-python@v5
         with: { python-version: '3.11' }
       - name: official swebench v4.0.4 builder
