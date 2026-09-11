@@ -80,7 +80,14 @@ def _load_json(p):
 
 
 def _prefs():
-    return _load_json(chrome_profile() / "Preferences") or {}
+    """Chrome 在 mac/Windows 上把受保护的偏好(默认搜索引擎、safebrowsing、extensions.settings 等)放在
+    Secure Preferences(带 HMAC),Linux 上放 Preferences。只读 Preferences 会在 mac/Windows 上读成 None、判假挂
+    (round A 应用状态套件 bb5e4c0d / 9656a811 / 6766f2b8 就是这样挂的)。两个都读,Secure 里的键覆盖,递归合并。"""
+    def merge(a, b):
+        for k, v in (b or {}).items():
+            a[k] = merge(a[k], v) if isinstance(v, dict) and isinstance(a.get(k), dict) else v
+        return a
+    return merge(_load_json(chrome_profile() / "Preferences") or {}, _load_json(chrome_profile() / "Secure Preferences") or {})
 
 
 def _dig(d, path, default=None):
@@ -180,8 +187,11 @@ def _sqlite_rows(db, sql):
 
 
 def is_cookie_deleted(args):
-    rows = _sqlite_rows(chrome_profile() / "Cookies",
-                        "select host_key from cookies where host_key like '%%%s%%'" % args["domain"].replace("'", ""))
+    # Chrome 96+ 把 Cookies 挪到了 Network/Cookies;Windows 上只有新路径,只读旧路径会「读不到 Cookies 库」(round A 7b6c7e24)。
+    rows = None
+    for db in (chrome_profile() / "Network" / "Cookies", chrome_profile() / "Cookies"):
+        rows = _sqlite_rows(db, "select host_key from cookies where host_key like '%%%s%%'" % args["domain"].replace("'", ""))
+        if rows is not None: break
     if rows is None:
         return False, "读不到 Cookies 库"
     return (len(rows) == 0), f"{args['domain']} 残留 cookie {len(rows)} 条"

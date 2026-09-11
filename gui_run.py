@@ -297,6 +297,14 @@ elif g["func"] in ("is_expected_tabs",):
     ok, why = G.FUNCS[g["func"]](g["args"]); chrome_stop()
 else:
     chrome_stop(); ok, why = G.FUNCS[g["func"]](g["args"])
+# 把 Chrome 的状态文件留一份在加密包之外:判据以后再改,能离线重判,不用重跑 agent。判分已结束、Chrome 已关,文件不会被锁。
+try:
+    _keep = pathlib.Path(f"gui_state_{platform.system()}"); _keep.mkdir(exist_ok=True)
+    for _f in ("Preferences", "Secure Preferences", "Bookmarks", "History", "Cookies", "Network/Cookies"):
+        _src = G.chrome_profile() / _f
+        if _src.exists(): shutil.copy(_src, _keep / _f.replace("/", "_"))
+except Exception as _e:
+    log("状态文件留存失败", type(_e).__name__)
 out = {"instance": f"gui__{task['app']}-{task['id'][:8]}", "task_id": task["id"], "arm": a.arm, "platform": platform.platform(),
        "resolved": int(ok), "setup_ok": SETUP_OK, "grade": g["func"], "why": why, "agent_rc": res.get("rc"), "agent_s": res.get("agent_s"),
        "total_s": int(time.time() - t0), "model": a.model}
