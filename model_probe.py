@@ -72,7 +72,7 @@ if avail:
     import collections
     for k in ("glm", "claude", "gemini", "gpt", "grok", "qwen", "kimi", "deepseek", "hunyuan", "vl", "vision"):
         hit = [m for m in avail if k in str(m).lower()]
-        if hit: print(f"  {k:9s} {len(hit):3d} 个: {' '.join(hit[:8])}")
+        if hit: print(f"  {k:9s} {len(hit):3d} 个: {' '.join(hit)}")
 if not models: models = [m for m in avail if any(k in str(m).lower() for k in ("glm", "claude", "gemini", "gpt-5", "grok", "qwen", "vl"))][:12]
 
 print(f"\n══ 逐个测视觉({len(models)} 个) | 图 {SIZE[0]}x{SIZE[1]},红块中心真值 {TRUTH}")
@@ -93,6 +93,6 @@ for m in models:
             err = f"{((x-TRUTH[0])**2+(y-TRUTH[1])**2)**0.5:.0f}px"
     print(f"{m[:34]:34s} {'是' if sees else '否':6s} {coord:>12s} {err:>7s}  {str(r1)[:46]}")
     rows.append({"model": m, "sees": sees, "coord": coord, "err": err, "raw": str(r1)[:120]})
-json.dump({"truth": TRUTH, "size": SIZE, "rows": rows}, open("model_probe.json", "w"), ensure_ascii=False, indent=1)
+json.dump({"truth": TRUTH, "size": SIZE, "available": avail, "rows": rows}, open("model_probe.json", "w"), ensure_ascii=False, indent=1)
 good = [r for r in rows if r["sees"] and r["err"] != "—" and float(str(r["err"]).rstrip("px")) < 60]
 print(f"\n能看图且坐标误差 <60px 的:{len(good)} 个 → {' '.join(r['model'] for r in good)}")
