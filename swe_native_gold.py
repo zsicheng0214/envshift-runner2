@@ -17,7 +17,17 @@ def _bash():
         for c in (r"C:\Program Files\Git\bin\bash.exe", r"C:\Program Files\Git\usr\bin\bash.exe"):
             if pathlib.Path(c).exists(): return c
     return "bash"
-def sh(c, **k): return subprocess.run([_bash(), "-lc", c], capture_output=True, text=True, **k)
+def sh(c, **k):
+    """脚本一律落成 LF 文件再 bash 执行,不把整段脚本当 argv 传。
+    Windows 上 subprocess 拼命令行会对 \\ 和 " 做转义,MSYS bash 再解析一遍规则不对称,
+    heredoc 里的 \\x.. 和 \"\"\"\\ 会被改掉,测试补丁内容变了,git apply - 打不上
+    (DIAG:同一补丁写成文件 --check 能过,走 stdin heredoc 不过)。Linux/mac 走 execve 无损,但三平台统一走文件更干净。"""
+    f = pathlib.Path(tempfile.gettempdir()) / f"envshift_sh_{os.getpid()}_{time.time_ns()}.sh"
+    f.write_text(c, encoding="utf-8", newline="\n")
+    try:
+        return subprocess.run([_bash(), "-l", str(f)], capture_output=True, text=True, **k)
+    finally:
+        f.unlink(missing_ok=True)
 import pyarrow.parquet as pq
 def _find_row(iid):
     """先在 Verified(500 道,6MB)里找;找不到再拉完整版(2294 道,33MB)。
