@@ -20,7 +20,7 @@ jobs:
         instance: ${{ fromJSON(inputs.instances) }}
         os: ${{ fromJSON(inputs.archs) }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 60   # 卡死的作业别长期占着并发槽(Windows 上 conda 解依赖卡过 3 小时)
+    timeout-minutes: 120   # 卡死的作业别长期占着并发槽(Windows 上 conda 解依赖卡过 3 小时)
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
