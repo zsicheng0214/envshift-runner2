@@ -92,7 +92,19 @@ elif a.arm == "openclaw":
     agent_s = int(time.time() - ta)
     od = pathlib.Path(f"agent_{a.instance}_{a.tag}_openclaw"); od.mkdir(exist_ok=True)
     (od / "driver.log").write_text(r2.stdout + r2.stderr, encoding="utf-8"); sh(f"docker cp {c}:/rout/oc {od}/oc")
-    print("openclaw rc", r2.returncode, "|", (r2.stdout + r2.stderr)[-200:].replace(chr(10), " "))
+    _drv = (r2.stdout + r2.stderr)
+    print("openclaw rc", r2.returncode, "|", _drv[-200:].replace(chr(10), " "))
+    # ★agent 死掉时日志里只留了 200 字,真因(比如 LLM 协议报错)正好被截掉,
+    #   完整 driver.log 又在加密产物里、本地没口令 —— 结果就是「为什么死」根本查不了。
+    #   这里把错误相关行单独打出来,并先抹掉可能出现的密钥。
+    import re as _re
+    _red = _re.sub(r'(sk-[A-Za-z0-9_\-]{8,})|("apiKey"\s*:\s*"[^"]*")', "REDACTED", _drv)
+    _err = [l for l in _red.splitlines()
+            if _re.search(r"(?i)(error|failed|exception|thought_signature|rawerror|refus|invalid|unsupported)", l)]
+    if _err:
+        print("-- driver 错误行(已抹密钥,最多 12 行):")
+        for _l in _err[-12:]:
+            print("   ", _l[:300])
 elif a.arm == "agent":
     # 与容器版执行器同一套:kit 拷进容器,DSH 在 /testbed 里干活;key 走文件不走命令行(㊴)
     key = os.environ.get("ENVSHIFT_API_KEY", "")

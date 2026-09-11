@@ -3,3 +3,4 @@ tasks/
 out/
 *.tgz
 *.b64
+__pycache__/

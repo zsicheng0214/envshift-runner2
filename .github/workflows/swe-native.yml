@@ -6,6 +6,8 @@ on:
       oslist: { description: "runner 列表(JSON 数组)", default: '["macos-14","windows-2022"]' }
       arm: { description: "gold | openclaw", default: "gold" }
       model: { description: "模型名(留空用默认 deepseek-v4-pro)", default: "deepseek-v4-pro" }
+      oc_version: { description: "OpenClaw 版本(全量统一 2026.9.4)", default: "2026.9.4" }
+      node_version: { description: "Node 版本(9.4 要 >=24.16)", default: "24.16.0" }
 jobs:
   native:
     strategy:
@@ -37,11 +39,11 @@ jobs:
         run: pip install -q "git+https://github.com/SWE-bench/SWE-bench@v4.0.4" pyarrow
       - uses: actions/setup-node@v4
         if: ${{ inputs.arm == 'openclaw' }}
-        with: { node-version: '22.19.0' }
+        with: { node-version: '${{ inputs.node_version }}' }
       - name: native OpenClaw (npm -g, same version as HarnessBench)
         if: ${{ inputs.arm == 'openclaw' }}
         shell: bash
-        run: npm install -g openclaw@2026.6.9 2>&1 | tail -1 && openclaw --version
+        run: npm install -g openclaw@${{ inputs.oc_version }} 2>&1 | tail -1 && openclaw --version
       - name: native run (official scripts, paths adapted only)
         shell: bash
         env: { ENVSHIFT_API_KEY: "${{ secrets.ENVSHIFT_API_KEY }}" }
