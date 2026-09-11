@@ -84,7 +84,9 @@ if r.returncode != 0:
 print("repo 装好 %ds" % (time.time() - t0))
 # 3) 臂
 if a.arm == "gold":
-    (TB / ".gold.diff").write_text(row["patch"], encoding="utf-8")
+    # newline 必须显式给 LF:Windows 上 write_text 默认把换行写成 CRLF,gold 补丁就成了 CRLF,
+    #   与 LF 的仓库文件、LF 的测试补丁(官方 eval 脚本 heredoc)三方不一致,git apply 直接失败。
+    (TB / ".gold.diff").write_text(row["patch"], encoding="utf-8", newline="\n")
     g = sh(f"cd '{TB}' && git apply -v .gold.diff")
     if g.returncode != 0: print("GOLD-APPLY-FAIL", g.stderr[-300:]); sys.exit(4)
 elif a.arm == "openclaw":
