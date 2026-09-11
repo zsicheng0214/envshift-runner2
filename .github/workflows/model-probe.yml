@@ -6,6 +6,8 @@ on:
       base: { description: "网关 baseUrl", default: "https://api.llmgateway.io/v1" }
       models: { description: "要测的模型(逗号分隔;留空=自动从网关挑)", default: "" }
       claude_probe: { description: "额外跑 Claude 视觉格式探针", default: "false" }
+      tool_probe: { description: "跑「工具调用两轮」探针(逗号分隔模型名)", default: "" }
+      variant_probe: { description: "跑请求形态变体探针(单个模型名)", default: "" }
 jobs:
   probe:
     runs-on: ubuntu-24.04
@@ -20,6 +22,8 @@ jobs:
         run: |
           python model_probe.py --base "${{ inputs.base }}" --models "${{ inputs.models }}"
           [ "${{ inputs.claude_probe }}" = "true" ] && python claude_vision_probe.py || true
+          [ -n "${{ inputs.tool_probe }}" ] && python tool_turn_probe.py $(echo "${{ inputs.tool_probe }}" | tr "," " ") || true
+          [ -n "${{ inputs.variant_probe }}" ] && python tool_turn_variants.py "${{ inputs.variant_probe }}" || true
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: model-probe, path: model_probe.json }

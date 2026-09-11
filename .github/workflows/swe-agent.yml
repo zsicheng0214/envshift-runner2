@@ -9,6 +9,7 @@ on:
       harness: { description: "openclaw | dsh", default: "openclaw" }
       official: { description: "true=用官方预制镜像当基准格,不重建", default: "false" }
       model: { description: "模型名(留空用默认 deepseek-v4-pro)", default: "deepseek-v4-pro" }
+      oc_version: { description: "OpenClaw 版本(默认 2026.6.9,与既有数据同版本)", default: "2026.6.9" }
 jobs:
   agent:
     strategy:
@@ -39,7 +40,7 @@ jobs:
         if: ${{ inputs.harness == 'openclaw' }}
         shell: bash
         run: |
-          npm install -g openclaw@2026.6.9 2>&1 | tail -1
+          npm install -g openclaw@${{ inputs.oc_version }} 2>&1 | tail -1
           mkdir -p ockit/node/bin ockit/lib && cp "$(which node)" ockit/node/bin/node && cp -r "$(npm root -g)/openclaw" ockit/lib/openclaw && cp oc_agent.sh oc_agent2.sh sanitize_testbed.sh netblock.sh ockit/
           ockit/node/bin/node ockit/lib/openclaw/openclaw.mjs --version
       - name: rebuild with official pipeline, run the model, official eval

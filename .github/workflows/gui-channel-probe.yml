@@ -1,0 +1,56 @@
+name: gui-channel-probe
+# 真 GUI 通道的生死探针:三系统能不能截屏 + 控鼠标键盘。
+# mac 的 CI 机器通常要屏幕录制权限,Linux 无头要虚拟显示——这一步过不了,真 GUI 通道就做不成。
+on:
+  workflow_dispatch:
+    inputs:
+      oslist: { description: "runner 列表(JSON 数组)", default: '["ubuntu-24.04","macos-15","windows-2022"]' }
+jobs:
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(inputs.oslist) }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    env: { PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+
+      - name: 虚拟显示(仅 Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb x11-utils scrot python3-tk python3-dev
+          # ★pyautogui 走 Xlib,需要 ~/.Xauthority;mss 不需要,所以上一轮只有 mss 能截
+          sudo apt-get install -y -qq xauth
+          touch "$HOME/.Xauthority"
+          xauth generate :99 . trusted 2>/dev/null || xauth add :99 . $(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')
+          Xvfb :99 -screen 0 1920x1080x24 -auth "$HOME/.Xauthority" & sleep 3
+          echo "DISPLAY=:99" >> $GITHUB_ENV
+          echo "XAUTHORITY=$HOME/.Xauthority" >> $GITHUB_ENV
+          DISPLAY=:99 XAUTHORITY=$HOME/.Xauthority xdpyinfo | head -3
+
+      - name: 放点窗口上去,免得截到全黑
+        shell: bash
+        env: { DISPLAY: ':99', XAUTHORITY: '/home/runner/.Xauthority' }
+        run: |
+          case "${{ runner.os }}" in
+            Linux)   sudo apt-get install -y -qq xterm >/dev/null 2>&1 || true; (xterm -geometry 100x30+50+50 &) ; sleep 3 ;;
+            macOS)   (open -a TextEdit &) ; sleep 5 ;;
+            Windows) (start notepad) ; sleep 5 ;;
+          esac
+
+      - name: 跨平台截屏/输入库
+        run: pip install -q pyautogui mss pillow
+
+      - name: 探针
+        shell: bash
+        env: { DISPLAY: ':99', XAUTHORITY: '/home/runner/.Xauthority' }
+        run: python gui_channel_probe.py
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: "gui-channel-${{ matrix.os }}", path: "probe_*" }
