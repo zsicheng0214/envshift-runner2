@@ -47,7 +47,11 @@ jobs:
             macOS)   brew install --cask libreoffice 2>/dev/null || true ;;
             Windows) choco install libreoffice-fresh -y --no-progress || true ;;
           esac
-          (soffice --version || libreoffice --version || "/Applications/LibreOffice.app/Contents/MacOS/soffice" --version || "/c/Program Files/LibreOffice/program/soffice.exe" --version) 2>/dev/null | head -1 || echo "soffice 不在 PATH(agent 可改用 python 库)"
+          # ★别执行 soffice --version:Windows 上 soffice 是图形程序,不退出、不写 stdout,管道挂到 job 超时
+          #   (全量 round A 的 20 个 Windows 办公 job 全在这一步跑满 90 分钟被杀)。只查路径,不启动它。
+          found=""; for c in soffice libreoffice "/Applications/LibreOffice.app/Contents/MacOS/soffice" "/c/Program Files/LibreOffice/program/soffice.exe"; do
+            if command -v "$c" >/dev/null 2>&1 || [ -x "$c" ]; then found="$c"; break; fi; done
+          echo "soffice 位置: ${found:-不在 PATH(agent 可改用 python 库)}"
 
       - name: OpenClaw
         if: inputs.arm == 'openclaw'
