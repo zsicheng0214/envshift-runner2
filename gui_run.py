@@ -133,6 +133,43 @@ def setup_docs(task):
     log("SETUP-FAIL LibreOffice 窗口没出现"); return False
 
 
+def soffice_stop():
+    """先温和关闭 LibreOffice 让它把改动写盘,等不到再强杀(与 Chrome 同一条纪律)。"""
+    if SYS == "Windows":
+        subprocess.run(["taskkill", "/IM", "soffice.bin"], capture_output=True)
+        subprocess.run(["taskkill", "/IM", "soffice.exe"], capture_output=True)
+        time.sleep(8)
+        subprocess.run(["taskkill", "/F", "/IM", "soffice.bin"], capture_output=True)
+        subprocess.run(["taskkill", "/F", "/IM", "soffice.exe"], capture_output=True)
+    else:
+        subprocess.run(["pkill", "-TERM", "-f", "soffice"], capture_output=True)
+        time.sleep(8)
+        subprocess.run(["pkill", "-KILL", "-f", "soffice"], capture_output=True)
+    time.sleep(3)
+
+
+def grade_doc(task):
+    """办公文档题的判分:调 OSWorld 官方 metrics,与终端通道完全同一套(不另写判据)。"""
+    sys.path.insert(0, str(HERE / "osw_metrics_pkg"))
+    fn = None; errs = []
+    for mod in ("table", "slides", "general", "pdf", "libreoffice", "others"):
+        try: m = __import__(f"desktop_env.evaluators.metrics.{mod}", fromlist=["x"])
+        except Exception as e: errs.append(f"{mod}: {type(e).__name__}"); continue
+        if hasattr(m, task["grade"]["func"]): fn = getattr(m, task["grade"]["func"]); break
+    if fn is None: return False, f"官方判分函数找不到 {task['grade']['func']}({';'.join(errs)})"
+    work = HOME / "office-work"
+    ref = work / ("_ref_" + task["files"][0]["name"])
+    for _ in range(3):
+        r = subprocess.run(["curl", "-sL", "--fail", "-m", "180", "-o", str(ref), task["grade"]["expected_url"]])
+        if r.returncode == 0 and ref.exists() and ref.stat().st_size > 0: break
+        time.sleep(5)
+    if not ref.exists(): return False, "参考文件下载失败"
+    target = work / task["grade"].get("result_file", task["files"][0]["name"])
+    try: score = fn(str(target), str(ref), **(task["grade"].get("options") or {}))
+    except Exception as e: return False, f"判分抛异常 {type(e).__name__}: {str(e)[:110]}"
+    return int(float(score) >= 1.0), f"官方判分 {task['grade']['func']} = {score}"
+
+
 def setup(s):
     # 真实桌面系统都有 ~/Desktop(Linux 由 xdg-user-dirs 建);CI 的 Linux runner 没有,补上以对齐真实环境
     G.desktop_dir().mkdir(parents=True, exist_ok=True)
@@ -240,7 +277,11 @@ elif a.arm == "gui":
     res = {"rc": r.returncode, "agent_s": int(time.time() - ta)}
 # 判分前:标签页类判据要在 Chrome 还开着时读;其余判据要先关 Chrome 让偏好落盘
 g = task["grade"]
-if g["func"] in ("is_expected_tabs",):
+if task.get("files"):
+    # 办公文档题:判分走 OSWorld 官方 metrics(与终端通道同一套),先关掉 LibreOffice 让它落盘
+    soffice_stop()
+    ok, why = grade_doc(task)
+elif g["func"] in ("is_expected_tabs",):
     ok, why = G.FUNCS[g["func"]](g["args"]); chrome_stop()
 else:
     chrome_stop(); ok, why = G.FUNCS[g["func"]](g["args"])
