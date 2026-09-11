@@ -7,6 +7,8 @@ on:
       oslist: { description: "runner 列表(JSON 数组)", default: '["ubuntu-24.04","macos-15","windows-2022"]' }
       arm: { description: "openclaw | null(只验装置与判分)", default: "openclaw" }
       model: { description: "模型名", default: "deepseek-v4-pro" }
+      oc_version: { description: "OpenClaw 版本(默认 2026.6.9,与既有办公/GUI 数据同版本)", default: "2026.6.9" }
+      node_version: { description: "Node 版本(★须满足所选 OpenClaw 的 engines:6.9 要 >=22.19,9.4 要 >=24.16)", default: "22.19.0" }
 jobs:
   office:
     strategy:
@@ -22,7 +24,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
       - uses: actions/setup-node@v4
-        with: { node-version: '22' }
+        with: { node-version: '${{ inputs.node_version }}' }
 
       - name: 官方 metrics 的依赖(判分侧)
         shell: bash          # ★Windows 默认 PowerShell,heredoc 会被当成 PS 语法报 ParserError
@@ -49,7 +51,7 @@ jobs:
 
       - name: OpenClaw
         if: inputs.arm == 'openclaw'
-        run: npm install -g openclaw@2026.6.9 2>&1 | tail -1 && openclaw --version
+        run: npm install -g openclaw@${{ inputs.oc_version }} 2>&1 | tail -1 && openclaw --version
 
       - name: 跑题
         shell: bash

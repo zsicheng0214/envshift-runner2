@@ -9,6 +9,8 @@ on:
       channel: { description: "terminal(命令行) | gui(截图+鼠标键盘)", default: "terminal" }
       suite: { description: "desk(15 道应用状态) | gui30(30 道,GUI 通道用)", default: "desk" }
       model: { description: "模型名", default: "deepseek-v4-pro" }
+      oc_version: { description: "OpenClaw 版本(默认 2026.6.9,与既有办公/GUI 数据同版本)", default: "2026.6.9" }
+      node_version: { description: "Node 版本(★须满足所选 OpenClaw 的 engines:6.9 要 >=22.19,9.4 要 >=24.16)", default: "22.19.0" }
 jobs:
   gui:
     strategy:
@@ -24,7 +26,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
       - uses: actions/setup-node@v4
-        with: { node-version: '22' }
+        with: { node-version: '${{ inputs.node_version }}' }
 
       - name: GUI 通道所需(虚拟显示 + 截图/输入库)
         if: inputs.channel == 'gui'
@@ -75,7 +77,7 @@ jobs:
 
       - name: OpenClaw(与代码题同版本)
         if: inputs.arm == 'openclaw'
-        run: npm install -g openclaw@2026.6.9 2>&1 | tail -1 && openclaw --version
+        run: npm install -g openclaw@${{ inputs.oc_version }} 2>&1 | tail -1 && openclaw --version
 
       - name: 跑题(终端通道)
         if: inputs.channel != 'gui'
