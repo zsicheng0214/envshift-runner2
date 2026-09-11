@@ -146,6 +146,10 @@ elif a.arm == "openclaw":
     try: shutil.copy(outd / "sanitize.log", "native_sanitize.log")
     except Exception: pass
 # 4) 官方 eval 脚本(改路径不改逻辑)
+# 诊断:测试补丁在 Windows 打不上的真因还没坐实,先把工作区真实行尾和 git 行尾配置打出来,别再盲改修法。
+#   git ls-files --eol 的 w/ 列就是工作区文件此刻是 lf 还是 crlf。
+_d = sh(f"cd '{TB}' && git config -l | grep -iE 'crlf|eol' ; git ls-files --eol | grep -E 'testing/|tests/|src/' | head -6")
+print("DIAG-EOL", (_d.stdout + _d.stderr).strip().replace(chr(10), " | ")[:700])
 e = sh(adapt(row["eval_script"]), timeout=3000); log = e.stdout + e.stderr
 pathlib.Path("native_eval.log").write_text(log, encoding="utf-8")
 import importlib; LP = importlib.import_module("swebench.harness.log_parsers")
