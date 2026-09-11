@@ -150,6 +150,11 @@ elif a.arm == "openclaw":
 #   git ls-files --eol 的 w/ 列就是工作区文件此刻是 lf 还是 crlf。
 _d = sh(f"cd '{TB}' && git config -l | grep -iE 'crlf|eol' ; git ls-files --eol | grep -E 'testing/|tests/|src/' | head -6")
 print("DIAG-EOL", (_d.stdout + _d.stderr).strip().replace(chr(10), " | ")[:700])
+# 最后一次诊断(不改修法):把测试补丁单独 --check 两遍,严格 vs 忽略空白。两者结果的差别一次说清:
+#   忽略空白能过 → 是空白/行尾类差异(只是不在行尾);两者都不过 → 是内容差异,不是行尾。
+_tp = TB / ".test.diff"; _tp.write_text(row.get("test_patch") or "", encoding="utf-8", newline="\n")
+_d2 = sh(f"cd '{TB}' && echo STRICT: && git apply --check -v .test.diff 2>&1 | tail -3 ; echo IGNWS: && git apply --check --ignore-whitespace .test.diff 2>&1 | tail -2 ; echo EOL: && git ls-files --eol $(git apply --numstat .test.diff 2>/dev/null | cut -f3) 2>/dev/null | head -3 ; rm -f .test.diff")
+print("DIAG-TP", (_d2.stdout + _d2.stderr).strip().replace(chr(10), " | ")[:900])
 e = sh(adapt(row["eval_script"]), timeout=3000); log = e.stdout + e.stderr
 pathlib.Path("native_eval.log").write_text(log, encoding="utf-8")
 import importlib; LP = importlib.import_module("swebench.harness.log_parsers")
