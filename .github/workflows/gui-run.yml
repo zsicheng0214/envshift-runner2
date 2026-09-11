@@ -7,6 +7,7 @@ on:
       oslist: { description: "runner 列表(JSON 数组)", default: '["ubuntu-24.04","macos-15","windows-2022"]' }
       arm: { description: "openclaw | null(只验初始状态与判分)", default: "openclaw" }
       channel: { description: "terminal(命令行) | gui(截图+鼠标键盘)", default: "terminal" }
+      suite: { description: "desk(15 道应用状态) | gui30(30 道,GUI 通道用)", default: "desk" }
       model: { description: "模型名", default: "deepseek-v4-pro" }
 jobs:
   gui:
@@ -37,6 +38,16 @@ jobs:
             echo "DISPLAY=:99" >> $GITHUB_ENV; echo "XAUTHORITY=$HOME/.Xauthority" >> $GITHUB_ENV
           fi
 
+      - name: LibreOffice(GUI 通道跑办公文档题时要真的打开它)
+        if: inputs.suite == 'gui30'
+        shell: bash
+        run: |
+          case "${{ runner.os }}" in
+            Linux)   sudo apt-get install -y -qq libreoffice-calc libreoffice-impress || true ;;
+            macOS)   brew install --cask libreoffice 2>/dev/null || true ;;
+            Windows) choco install libreoffice-fresh -y --no-progress || true ;;
+          esac
+
       - name: 装 Chrome + VS Code
         shell: bash
         run: |
@@ -65,13 +76,13 @@ jobs:
         if: inputs.channel != 'gui'
         shell: bash
         env: { ENVSHIFT_API_KEY: "${{ secrets.ENVSHIFT_API_KEY }}" }
-        run: python gui_run.py "${{ matrix.task }}" --arm ${{ inputs.arm }} --model "${{ inputs.model }}" 2>&1 | tail -30
+        run: python gui_run.py "${{ matrix.task }}" --arm ${{ inputs.arm }} --suite ${{ inputs.suite }} --model "${{ inputs.model }}" 2>&1 | tail -30
 
       - name: 跑题(真 GUI 通道:截图+鼠标键盘)
         if: inputs.channel == 'gui'
         shell: bash
         env: { ENVSHIFT_API_KEY: "${{ secrets.ENVSHIFT_API_KEY }}", DISPLAY: ':99' }
-        run: python gui_run.py "${{ matrix.task }}" --arm gui --model "${{ inputs.model }}" 2>&1 | tail -40
+        run: python gui_run.py "${{ matrix.task }}" --arm gui --suite ${{ inputs.suite }} --model "${{ inputs.model }}" 2>&1 | tail -40
 
       - name: 打包会话记录
         if: always()

@@ -18,9 +18,10 @@ ap = argparse.ArgumentParser()
 ap.add_argument("task"); ap.add_argument("--arm", default="openclaw", choices=["openclaw", "gui", "null", "list"])
 ap.add_argument("--model", default="deepseek-v4-pro"); ap.add_argument("--base", default="https://api.llmgateway.io/v1")
 ap.add_argument("--timeout", type=int, default=900); ap.add_argument("--port", type=int, default=1337)
+ap.add_argument("--suite", default="desk", choices=["desk", "gui30"], help="desk=15 道应用状态;gui30=30 道(含 15 道办公文档,GUI 通道用)")
 a = ap.parse_args()
 SYS = platform.system(); HOME = pathlib.Path.home()
-TASKS = json.load(open(HERE / "gui_tasks.json", encoding="utf-8"))
+TASKS = json.load(open(HERE / ("gui30_tasks.json" if a.suite == "gui30" else "gui_tasks.json"), encoding="utf-8"))
 if a.arm == "list":
     for i, t in enumerate(TASKS, 1): print(i, t["id"], t["app"], t["instruction"][:70])
     sys.exit(0)
@@ -92,6 +93,46 @@ def cdp(path, method="GET"):
 
 
 # ── 初始状态 ────────────────────────────────────────────────────────────────
+def soffice_bin():
+    """LibreOffice 可执行文件:三系统名字与位置都不同,这本身就是接触面。"""
+    if SYS == "Darwin":
+        p = pathlib.Path("/Applications/LibreOffice.app/Contents/MacOS/soffice")
+        return str(p) if p.exists() else (shutil.which("soffice") or "soffice")
+    if SYS == "Windows":
+        for c in (r"C:\Program Files\LibreOffice\program\soffice.exe", r"C:\Program Files (x86)\LibreOffice\program\soffice.exe"):
+            if pathlib.Path(c).exists(): return c
+        return "soffice.exe"
+    return shutil.which("soffice") or shutil.which("libreoffice") or "soffice"
+
+
+def setup_docs(task):
+    """办公文档题(GUI 通道):把文件下到工作目录,再用 LibreOffice 打开,让模型有界面可点。"""
+    work = HOME / "office-work"; work.mkdir(parents=True, exist_ok=True)
+    opened = []
+    for f in task.get("files", []):
+        dest = work / f["name"]
+        for _ in range(3):
+            r = subprocess.run(["curl", "-sL", "--fail", "-m", "180", "-o", str(dest), f["url"]])
+            if r.returncode == 0 and dest.exists() and dest.stat().st_size > 0: break
+            time.sleep(5)
+        if not dest.exists(): log("SETUP-FAIL 文件下载失败", f["url"]); return False
+        log("已就位", dest, dest.stat().st_size, "字节"); opened.append(dest)
+    env = dict(os.environ); env.setdefault("DISPLAY", ":99")
+    logf = open(OUTD / "soffice.log", "a")
+    subprocess.Popen([soffice_bin(), "--norestore", str(opened[0])], env=env, stdout=logf, stderr=logf)
+    for i in range(60):                      # 等窗口真的画出来:靠截图里的非黑像素判断,而不是靠 sleep
+        time.sleep(2)
+        try:
+            import mss
+            from PIL import Image
+            with mss.mss() as sc:
+                raw = sc.grab(sc.monitors[1]); im = Image.frombytes("RGB", raw.size, raw.rgb)
+            nz = sum(1 for p in im.convert("L").getdata() if p > 8) / (im.size[0] * im.size[1])
+            if nz > 0.05: log(f"LibreOffice 窗口已出现({(i+1)*2}s,画面非黑 {nz:.2f})"); return True
+        except Exception: pass
+    log("SETUP-FAIL LibreOffice 窗口没出现"); return False
+
+
 def setup(s):
     # 真实桌面系统都有 ~/Desktop(Linux 由 xdg-user-dirs 建);CI 的 Linux runner 没有,补上以对齐真实环境
     G.desktop_dir().mkdir(parents=True, exist_ok=True)
@@ -182,7 +223,11 @@ t0 = time.time()
 SETUP_OK = False
 log("平台", platform.platform(), "| 题", task["id"][:8], task["app"], "|", task["instruction"][:70])
 log("Chrome 数据目录:", G.chrome_user_data_dir())
-setup(task.get("setup", {}))
+if task.get("files"):                      # 办公文档题
+    SETUP_OK = setup_docs(task)
+    if not SETUP_OK: print(f"RESULT {task['id'][:8]} SETUP-FAIL"); sys.exit(4)
+else:
+    setup(task.get("setup", {}))
 res = {"rc": 0, "agent_s": 0}
 if a.arm == "openclaw":
     res = run_agent(task["instruction"])
