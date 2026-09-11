@@ -6,6 +6,7 @@ on:
       tasks: { description: "gui_tasks.json 里的序号列表(JSON 数组,1 起)", default: '[1]' }
       oslist: { description: "runner 列表(JSON 数组)", default: '["ubuntu-24.04","macos-15","windows-2022"]' }
       arm: { description: "openclaw | null(只验初始状态与判分)", default: "openclaw" }
+      channel: { description: "terminal(命令行) | gui(截图+鼠标键盘)", default: "terminal" }
       model: { description: "模型名", default: "deepseek-v4-pro" }
 jobs:
   gui:
@@ -23,6 +24,18 @@ jobs:
         with: { python-version: '3.12' }
       - uses: actions/setup-node@v4
         with: { node-version: '22' }
+
+      - name: GUI 通道所需(虚拟显示 + 截图/输入库)
+        if: inputs.channel == 'gui'
+        shell: bash
+        run: |
+          pip install -q mss pyautogui pillow
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq xvfb x11-utils xauth scrot python3-tk
+            touch "$HOME/.Xauthority"; xauth add :99 . $(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n') 2>/dev/null || true
+            Xvfb :99 -screen 0 1920x1080x24 -auth "$HOME/.Xauthority" & sleep 3
+            echo "DISPLAY=:99" >> $GITHUB_ENV; echo "XAUTHORITY=$HOME/.Xauthority" >> $GITHUB_ENV
+          fi
 
       - name: 装 Chrome + VS Code
         shell: bash
@@ -48,11 +61,17 @@ jobs:
         if: inputs.arm == 'openclaw'
         run: npm install -g openclaw@2026.6.9 2>&1 | tail -1 && openclaw --version
 
-      - name: 跑题
+      - name: 跑题(终端通道)
+        if: inputs.channel != 'gui'
         shell: bash
         env: { ENVSHIFT_API_KEY: "${{ secrets.ENVSHIFT_API_KEY }}" }
-        run: |
-          python gui_run.py "${{ matrix.task }}" --arm ${{ inputs.arm }} --model "${{ inputs.model }}" 2>&1 | tail -30
+        run: python gui_run.py "${{ matrix.task }}" --arm ${{ inputs.arm }} --model "${{ inputs.model }}" 2>&1 | tail -30
+
+      - name: 跑题(真 GUI 通道:截图+鼠标键盘)
+        if: inputs.channel == 'gui'
+        shell: bash
+        env: { ENVSHIFT_API_KEY: "${{ secrets.ENVSHIFT_API_KEY }}", DISPLAY: ':99' }
+        run: python gui_run.py "${{ matrix.task }}" --arm gui --model "${{ inputs.model }}" 2>&1 | tail -40
 
       - name: 打包会话记录
         if: always()

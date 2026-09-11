@@ -1,0 +1,674 @@
+[
+ {
+  "id": "37608790-6147-45d0-9f20-1137bb35703d",
+  "src": "libreoffice_calc__37608790-6147-45d0-9f20-1137bb35703d.json",
+  "app": "lo_calc",
+  "instruction": "The information are mixed in one field. Help me split them and fill in the columns of First Name, Last Name and Rank. Finish the work and don't touch the original data.",
+  "files": [
+   {
+    "url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_calc/37608790-6147-45d0-9f20-1137bb35703d/Employee_Roles_and_Ranks.xlsx",
+    "name": "Employee_Roles_and_Ranks.xlsx"
+   }
+  ],
+  "grade": {
+   "func": "compare_table",
+   "expected_url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_calc/37608790-6147-45d0-9f20-1137bb35703d/Employee_Roles_and_Ranks_gold.xlsx",
+   "options": {
+    "rules": [
+     {
+      "type": "sheet_data",
+      "sheet_idx0": 0,
+      "sheet_idx1": "EI0"
+     }
+    ]
+   },
+   "result_file": "Employee_Roles_and_Ranks.xlsx"
+  },
+  "suite": "desk",
+  "kind": "办公文档",
+  "src_app": "lo_calc"
+ },
+ {
+  "id": "51b11269-2ca8-4b2a-9163-f21758420e78",
+  "src": "libreoffice_calc__51b11269-2ca8-4b2a-9163-f21758420e78.json",
+  "app": "lo_calc",
+  "instruction": "Could you help me to sort the records accoring to the amounts ascendingly?",
+  "files": [
+   {
+    "url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_calc/51b11269-2ca8-4b2a-9163-f21758420e78/Arrang_Value_min_to_max.xlsx",
+    "name": "Arrang_Value_min_to_max.xlsx"
+   }
+  ],
+  "grade": {
+   "func": "compare_table",
+   "expected_url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_calc/51b11269-2ca8-4b2a-9163-f21758420e78/Arrang_Value_min_to_max_gold.xlsx",
+   "options": {
+    "rules": [
+     {
+      "type": "sheet_data",
+      "sheet_idx0": 0,
+      "sheet_idx1": "EI0"
+     }
+    ]
+   },
+   "result_file": "Arrang_Value_min_to_max.xlsx"
+  },
+  "suite": "desk",
+  "kind": "办公文档",
+  "src_app": "lo_calc"
+ },
+ {
+  "id": "1e8df695-bd1b-45b3-b557-e7d599cf7597",
+  "src": "libreoffice_calc__1e8df695-bd1b-45b3-b557-e7d599cf7597.json",
+  "app": "lo_calc",
+  "instruction": "Add a new column named \"Profit\" right next to the 'CGOS' column and calculate the profit for each week by subtracting \"COGS\" from \"Sales\" in that column.",
+  "files": [
+   {
+    "url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_calc/1e8df695-bd1b-45b3-b557-e7d599cf7597/WeeklySales.xlsx",
+    "name": "WeeklySales.xlsx"
+   }
+  ],
+  "grade": {
+   "func": "compare_table",
+   "expected_url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_calc/1e8df695-bd1b-45b3-b557-e7d599cf7597/6_WeeklySales_gt1.xlsx",
+   "options": {
+    "rules": [
+     {
+      "type": "sheet_data",
+      "sheet_idx0": 0,
+      "sheet_idx1": "EI0"
+     }
+    ]
+   },
+   "result_file": "WeeklySales.xlsx"
+  },
+  "suite": "desk",
+  "kind": "办公文档",
+  "src_app": "lo_calc"
+ },
+ {
+  "id": "035f41ba-6653-43ab-aa63-c86d449d62e5",
+  "src": "libreoffice_calc__035f41ba-6653-43ab-aa63-c86d449d62e5.json",
+  "app": "lo_calc",
+  "instruction": "Help me fill in the Gross profit column by subtracting all the available expenses including discounts, allowances, material and labor charges, and overhead from the actual sale, i.e., the sales after deducting the returns. Then under column A named \"Year_Profit\" in a new sheet \"Sheet2\", display the Year Column in Sheet 1 as text appended by a \"_\" with the corresponding integer digits of Gross Profit value.",
+  "files": [
+   {
+    "url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_calc/035f41ba-6653-43ab-aa63-c86d449d62e5/IncomeStatement2.xlsx",
+    "name": "IncomeStatement2.xlsx"
+   }
+  ],
+  "grade": {
+   "func": "compare_table",
+   "expected_url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_calc/035f41ba-6653-43ab-aa63-c86d449d62e5/5_IncomeStatement2_gt1.xlsx",
+   "options": {
+    "rules": [
+     {
+      "type": "sheet_data",
+      "sheet_idx0": "RNSheet1",
+      "sheet_idx1": "ENSheet1"
+     },
+     {
+      "type": "sheet_data",
+      "sheet_idx0": "RNSheet2",
+      "sheet_idx1": "ENSheet2"
+     }
+    ]
+   },
+   "result_file": "IncomeStatement2.xlsx"
+  },
+  "suite": "desk",
+  "kind": "办公文档",
+  "src_app": "lo_calc"
+ },
+ {
+  "id": "1d17d234-e39d-4ed7-b46f-4417922a4e7c",
+  "src": "libreoffice_calc__1d17d234-e39d-4ed7-b46f-4417922a4e7c.json",
+  "app": "lo_calc",
+  "instruction": "Create a new sheet named \"Sheet2\" and merge cells A1:C1 to write the header \"Investment Summary\". Beneath that, merge cells A2:B2 to write \"High Interest Rate\" and merge cells C2:D2 to form \"Low Interest Rate\".",
+  "files": [
+   {
+    "url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_calc/1d17d234-e39d-4ed7-b46f-4417922a4e7c/FutureValue.xlsx",
+    "name": "FutureValue.xlsx"
+   }
+  ],
+  "grade": {
+   "func": "compare_table",
+   "expected_url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_calc/1d17d234-e39d-4ed7-b46f-4417922a4e7c/5_FutureValue_gt1.xlsx",
+   "options": {
+    "rules": [
+     {
+      "type": "check_cell",
+      "sheet_idx": "RNSheet2",
+      "coordinate": "A1",
+      "props": {
+       "value": {
+        "method": "eq",
+        "ref": "Investment Summary"
+       }
+      }
+     },
+     {
+      "type": "check_cell",
+      "sheet_idx": "RNSheet2",
+      "coordinate": "B1",
+      "props": {
+       "merge": {
+        "method": "eq",
+        "ref": true
+       }
+      }
+     },
+     {
+      "type": "check_cell",
+      "sheet_idx": "RNSheet2",
+      "coordinate": "C1",
+      "props": {
+       "merge": {
+        "method": "eq",
+        "ref": true
+       }
+      }
+     },
+     {
+      "type": "check_cell",
+      "sheet_idx": "RNSheet2",
+      "coordinate": "D1",
+      "props": {
+       "merge": {
+        "method": "eq",
+        "ref": false
+       }
+      }
+     },
+     {
+      "type": "check_cell",
+      "sheet_idx": "RNSheet2",
+      "coordinate": "A2",
+      "props": {
+       "value": {
+        "method": "eq",
+        "ref": "High Interest Rate"
+       }
+      }
+     },
+     {
+      "type": "check_cell",
+      "sheet_idx": "RNSheet2",
+      "coordinate": "B2",
+      "props": {
+       "merge": {
+        "method": "eq",
+        "ref": true
+       }
+      }
+     },
+     {
+      "type": "check_cell",
+      "sheet_idx": "RNSheet2",
+      "coordinate": "C2",
+      "props": {
+       "value": {
+        "method": "eq",
+        "ref": "Low Interest Rate"
+       }
+      }
+     },
+     {
+      "type": "check_cell",
+      "sheet_idx": "RNSheet2",
+      "coordinate": "D2",
+      "props": {
+       "merge": {
+        "method": "eq",
+        "ref": true
+       }
+      }
+     },
+     {
+      "type": "check_cell",
+      "sheet_idx": "RNSheet2",
+      "coordinate": "E2",
+      "props": {
+       "merge": {
+        "method": "eq",
+        "ref": false
+       }
+      }
+     }
+    ]
+   },
+   "result_file": "FutureValue.xlsx"
+  },
+  "suite": "desk",
+  "kind": "办公文档",
+  "src_app": "lo_calc"
+ },
+ {
+  "id": "535364ea-05bd-46ea-9937-9f55c68507e8",
+  "src": "libreoffice_calc__535364ea-05bd-46ea-9937-9f55c68507e8.json",
+  "app": "lo_calc",
+  "instruction": "Create two pivot tables in a new sheet named \"Sheet2\" showing the total revenue for each product and sales channel.",
+  "files": [
+   {
+    "url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_calc/535364ea-05bd-46ea-9937-9f55c68507e8/SummerSales.xlsx",
+    "name": "SummerSales.xlsx"
+   }
+  ],
+  "grade": {
+   "func": "compare_table",
+   "expected_url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_calc/535364ea-05bd-46ea-9937-9f55c68507e8/5_SummerSales_gt1.xlsx",
+   "options": {
+    "rules": [
+     {
+      "type": "pivot_table",
+      "sheet_idx0": "RNSheet2",
+      "sheet_idx1": "ENSheet2",
+      "pivot_props": [
+       "col_fields",
+       "filter",
+       "row_fields",
+       "data_fields"
+      ]
+     }
+    ]
+   },
+   "result_file": "SummerSales.xlsx"
+  },
+  "suite": "desk",
+  "kind": "办公文档",
+  "src_app": "lo_calc"
+ },
+ {
+  "id": "12382c62-0cd1-4bf2-bdc8-1d20bf9b2371",
+  "src": "libreoffice_calc__12382c62-0cd1-4bf2-bdc8-1d20bf9b2371.json",
+  "app": "lo_calc",
+  "instruction": "Create a clustered column chart showing the Sales and COGS data for each week in a new sheet named \"Sheet2\". Set the chart title as \"Sales & COGS\".",
+  "files": [
+   {
+    "url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_calc/1e8df695-bd1b-45b3-b557-e7d599cf7597/WeeklySales.xlsx",
+    "name": "WeeklySales.xlsx"
+   }
+  ],
+  "grade": {
+   "func": "compare_table",
+   "expected_url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_calc/12382c62-0cd1-4bf2-bdc8-1d20bf9b2371/13_WeeklySales_gt1.xlsx",
+   "options": {
+    "rules": [
+     {
+      "type": "chart",
+      "sheet_idx0": "RNSheet2",
+      "sheet_idx1": "ENSheet2",
+      "chart_props": [
+       "type",
+       "title"
+      ]
+     }
+    ]
+   },
+   "result_file": "WeeklySales.xlsx"
+  },
+  "suite": "desk",
+  "kind": "办公文档",
+  "src_app": "lo_calc"
+ },
+ {
+  "id": "3a7c8185-25c1-4941-bd7b-96e823c9f21f",
+  "src": "libreoffice_calc__3a7c8185-25c1-4941-bd7b-96e823c9f21f.json",
+  "app": "lo_calc",
+  "instruction": "Sort the data according to column A in an ascending order and then create a line chart with the \"Date Time\" column on the X-axis and quantity on the Y-axis.",
+  "files": [
+   {
+    "url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_calc/51719eea-10bc-4246-a428-ac7c433dd4b3/BoomerangSales.xlsx",
+    "name": "BoomerangSales.xlsx"
+   }
+  ],
+  "grade": {
+   "func": "compare_table",
+   "expected_url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_calc/3a7c8185-25c1-4941-bd7b-96e823c9f21f/6_BoomerangSales_gt1.xlsx",
+   "options": {
+    "rules": [
+     {
+      "type": "sheet_data",
+      "sheet_idx0": 0,
+      "sheet_idx1": "EI0"
+     },
+     {
+      "type": "chart",
+      "sheet_idx0": 0,
+      "sheet_idx1": "EI0",
+      "chart_props": [
+       "type"
+      ]
+     }
+    ]
+   },
+   "result_file": "BoomerangSales.xlsx"
+  },
+  "suite": "desk",
+  "kind": "办公文档",
+  "src_app": "lo_calc"
+ },
+ {
+  "id": "ecb0df7a-4e8d-4a03-b162-053391d3afaf",
+  "src": "libreoffice_calc__ecb0df7a-4e8d-4a03-b162-053391d3afaf.json",
+  "app": "lo_calc",
+  "instruction": "In the column \"Pass/Fail/Held\", one from the texts \"Pass\", \"Fail\", and \"Held\" should be filled. For convinience, enable data validation for the cells in this column so that the texts to fill can be directly selected from a drop down list. Finish the work and don't touch irrelevant regions, even if they are blank.",
+  "files": [
+   {
+    "url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_calc/ecb0df7a-4e8d-4a03-b162-053391d3afaf/Order_Id_Mark_Pass_Fail.xlsx",
+    "name": "Order_Id_Mark_Pass_Fail.xlsx"
+   }
+  ],
+  "grade": {
+   "func": "compare_table",
+   "expected_url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_calc/ecb0df7a-4e8d-4a03-b162-053391d3afaf/Order_Id_Mark_Pass_Fail_gold.xlsx",
+   "options": {
+    "rules": [
+     {
+      "type": "sheet_data",
+      "sheet_idx0": 0,
+      "sheet_idx1": "EI0"
+     },
+     {
+      "type": "data_validation",
+      "sheet_idx": 0,
+      "dv_props": [
+       {
+        "ranges": {
+         "method": "spreadsheet_range",
+         "ref": [
+          "D2:D29",
+          "D1:D1048576"
+         ]
+        },
+        "type": {
+         "method": "eq",
+         "ref": "list"
+        },
+        "formula1": {
+         "method": "str_set_eq",
+         "ref": [
+          "Pass",
+          "Fail",
+          "Held"
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "result_file": "Order_Id_Mark_Pass_Fail.xlsx"
+  },
+  "suite": "desk",
+  "kind": "办公文档",
+  "src_app": "lo_calc"
+ },
+ {
+  "id": "abed40dc-063f-4598-8ba5-9fe749c0615d",
+  "src": "libreoffice_calc__abed40dc-063f-4598-8ba5-9fe749c0615d.json",
+  "app": "lo_calc",
+  "instruction": "Check the names in column \"Names with duplicates\" and put the unique ones in column \"Unique Names\". Keep the original order of the first occurrences. Finish the work and don't touch irrelevant regions, even if they are blank.",
+  "files": [
+   {
+    "url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_calc/abed40dc-063f-4598-8ba5-9fe749c0615d/Names_Duplicate_Unique.xlsx",
+    "name": "Names_Duplicate_Unique.xlsx"
+   }
+  ],
+  "grade": {
+   "func": "compare_table",
+   "expected_url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_calc/abed40dc-063f-4598-8ba5-9fe749c0615d/Names_Duplicate_Unique_gold.xlsx",
+   "options": {
+    "rules": [
+     {
+      "type": "sheet_data",
+      "sheet_idx0": 0,
+      "sheet_idx1": "EI0"
+     }
+    ]
+   },
+   "result_file": "Names_Duplicate_Unique.xlsx"
+  },
+  "suite": "desk",
+  "kind": "办公文档",
+  "src_app": "lo_calc"
+ },
+ {
+  "id": "a9f325aa-8c05-4e4f-8341-9e4358565f4f",
+  "src": "libreoffice_calc__a9f325aa-8c05-4e4f-8341-9e4358565f4f.json",
+  "app": "lo_calc",
+  "instruction": "I want to copy the movie titles in 'Garbage Movie Titles' column to the 'Clean Movie Titles' column. But please remove the adundant whitespaces and canonicalize the letter cases by capitalizing the first letter of each words and leave other letters as lower case. Finish the work and don't touch irrelevant regions, even if they are blank.",
+  "files": [
+   {
+    "url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_calc/a9f325aa-8c05-4e4f-8341-9e4358565f4f/Movie_titles_garbage_clean.xlsx",
+    "name": "Movie_title_garbage_clean.xlsx"
+   }
+  ],
+  "grade": {
+   "func": "compare_table",
+   "expected_url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_calc/a9f325aa-8c05-4e4f-8341-9e4358565f4f/Movie_titles_garbage_clean_gold.xlsx",
+   "options": {
+    "rules": [
+     {
+      "type": "sheet_data",
+      "sheet_idx0": 0,
+      "sheet_idx1": "EI0"
+     }
+    ]
+   },
+   "result_file": "Movie_title_garbage_clean.xlsx"
+  },
+  "suite": "desk",
+  "kind": "办公文档",
+  "src_app": "lo_calc"
+ },
+ {
+  "id": "04d9aeaf-7bed-4024-bedb-e10e6f00eb7f",
+  "src": "libreoffice_calc__04d9aeaf-7bed-4024-bedb-e10e6f00eb7f.json",
+  "app": "lo_calc",
+  "instruction": "In a new sheet (\"Sheet2\") with 4 headers \"Year\", \"CA changes\", \"FA changes\", and \"OA changes\", calculate the percentage annual changes compared to last year in 2015 to 2019 for the Current Assets, Fixed Assets, and Other Assets columns.",
+  "files": [
+   {
+    "url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_calc/04d9aeaf-7bed-4024-bedb-e10e6f00eb7f/SmallBalanceSheet.xlsx",
+    "name": "SmallBalanceSheet.xlsx"
+   }
+  ],
+  "grade": {
+   "func": "compare_table",
+   "expected_url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_calc/04d9aeaf-7bed-4024-bedb-e10e6f00eb7f/4_SmallBalanceSheet_gt1.xlsx",
+   "options": {
+    "rules": [
+     {
+      "type": "sheet_data",
+      "sheet_idx0": "RNSheet2",
+      "sheet_idx1": "ENSheet2"
+     }
+    ]
+   },
+   "result_file": "SmallBalanceSheet.xlsx"
+  },
+  "suite": "desk",
+  "kind": "办公文档",
+  "src_app": "lo_calc"
+ },
+ {
+  "id": "986fc832-6af2-417c-8845-9272b3a1528b",
+  "src": "libreoffice_impress__986fc832-6af2-417c-8845-9272b3a1528b.json",
+  "app": "lo_impress",
+  "instruction": "Underline the body text of the slide only, without underlining the title or table. Then set the font color of all text on the slide, including the title, body text, and table text, to the \"Dark Red 2\" color from the LibreOffice color palette.",
+  "files": [
+   {
+    "url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_impress/986fc832-6af2-417c-8845-9272b3a1528b/154_3.pptx",
+    "name": "154_3.pptx"
+   }
+  ],
+  "grade": {
+   "func": "compare_pptx_files",
+   "expected_url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_impress/986fc832-6af2-417c-8845-9272b3a1528b/154_3_Gold.pptx",
+   "options": {
+    "color_tolerance": 30
+   },
+   "result_file": "154_3.pptx"
+  },
+  "suite": "desk",
+  "kind": "办公文档",
+  "src_app": "lo_impress"
+ },
+ {
+  "id": "9cf05d24-6bd9-4dae-8967-f67d88f5d38a",
+  "src": "libreoffice_impress__9cf05d24-6bd9-4dae-8967-f67d88f5d38a.json",
+  "app": "lo_impress",
+  "instruction": "Move to slide 1 and give it a green background color.",
+  "files": [
+   {
+    "url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_impress/9cf05d24-6bd9-4dae-8967-f67d88f5d38a/214_9.pptx",
+    "name": "214_9.pptx"
+   }
+  ],
+  "grade": {
+   "func": "compare_pptx_files",
+   "expected_url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_impress/9cf05d24-6bd9-4dae-8967-f67d88f5d38a/214_9_Gold.pptx",
+   "options": {},
+   "result_file": "214_9.pptx"
+  },
+  "suite": "desk",
+  "kind": "办公文档",
+  "src_app": "lo_impress"
+ },
+ {
+  "id": "edb61b14-a854-4bf5-a075-c8075c11293a",
+  "src": "libreoffice_impress__edb61b14-a854-4bf5-a075-c8075c11293a.json",
+  "app": "lo_impress",
+  "instruction": "In the last slide, make the font style \"Times New Roman\"",
+  "files": [
+   {
+    "url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_impress/edb61b14-a854-4bf5-a075-c8075c11293a/24_8.pptx",
+    "name": "24_8.pptx"
+   }
+  ],
+  "grade": {
+   "func": "compare_pptx_files",
+   "expected_url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_impress/edb61b14-a854-4bf5-a075-c8075c11293a/24_8_Gold.pptx",
+   "options": {},
+   "result_file": "24_8.pptx"
+  },
+  "suite": "desk",
+  "kind": "办公文档",
+  "src_app": "lo_impress"
+ },
+ {
+  "id": "8979838c-54a5-4454-a2b8-3d135a1a5c8f",
+  "src": "libreoffice_impress__8979838c-54a5-4454-a2b8-3d135a1a5c8f.json",
+  "app": "lo_impress",
+  "instruction": "Give the slide a purple background color. Add the title to note.",
+  "files": [
+   {
+    "url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_impress/8979838c-54a5-4454-a2b8-3d135a1a5c8f/186_3.pptx",
+    "name": "186_3.pptx"
+   }
+  ],
+  "grade": {
+   "func": "compare_pptx_files",
+   "expected_url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_impress/8979838c-54a5-4454-a2b8-3d135a1a5c8f/186_3_Gold.pptx",
+   "options": {},
+   "result_file": "186_3.pptx"
+  },
+  "suite": "desk",
+  "kind": "办公文档",
+  "src_app": "lo_impress"
+ },
+ {
+  "id": "af23762e-2bfd-4a1d-aada-20fa8de9ce07",
+  "src": "libreoffice_impress__af23762e-2bfd-4a1d-aada-20fa8de9ce07.json",
+  "app": "lo_impress",
+  "instruction": "I am making PPT on LibreOffice Impress for presentation tomorrow. I need to summarize contents on one slide use Impress \"Summary Slide\" feature. Could you make that for me?",
+  "files": [
+   {
+    "url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_impress/af23762e-2bfd-4a1d-aada-20fa8de9ce07/Forests.pptx",
+    "name": "Forests.pptx"
+   }
+  ],
+  "grade": {
+   "func": "compare_pptx_files",
+   "expected_url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_impress/af23762e-2bfd-4a1d-aada-20fa8de9ce07/Forests_Gold.pptx",
+   "options": {},
+   "result_file": "Forests.pptx"
+  },
+  "suite": "desk",
+  "kind": "办公文档",
+  "src_app": "lo_impress"
+ },
+ {
+  "id": "39be0d19-634d-4475-8768-09c130f5425d",
+  "src": "libreoffice_impress__39be0d19-634d-4475-8768-09c130f5425d.json",
+  "app": "lo_impress",
+  "instruction": "In the \"Features\" slide, insert a table with 5 rows and 2 columns.",
+  "files": [
+   {
+    "url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_impress/39be0d19-634d-4475-8768-09c130f5425d/41_3.pptx",
+    "name": "41_3.pptx"
+   }
+  ],
+  "grade": {
+   "func": "compare_pptx_files",
+   "expected_url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_impress/39be0d19-634d-4475-8768-09c130f5425d/41_3_Gold.pptx",
+   "options": {},
+   "result_file": "41_3.pptx"
+  },
+  "suite": "desk",
+  "kind": "办公文档",
+  "src_app": "lo_impress"
+ },
+ {
+  "id": "c82632a4-56b6-4db4-9dd1-3820ee3388e4",
+  "src": "libreoffice_impress__c82632a4-56b6-4db4-9dd1-3820ee3388e4.json",
+  "app": "lo_impress",
+  "instruction": "Add an image \"none.png\" on the Desktop to slide 2 with 1cm*1cm size.",
+  "files": [
+   {
+    "url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_impress/c82632a4-56b6-4db4-9dd1-3820ee3388e4/31_2.pptx",
+    "name": "31_2.pptx"
+   },
+   {
+    "url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_impress/c82632a4-56b6-4db4-9dd1-3820ee3388e4/none.png",
+    "name": "none.png"
+   }
+  ],
+  "grade": {
+   "func": "compare_pptx_files",
+   "expected_url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_impress/c82632a4-56b6-4db4-9dd1-3820ee3388e4/31_2_Gold.pptx",
+   "options": {
+    "examine_shape": false,
+    "examine_image_size": true,
+    "approximately_tolerance": 0.01
+   },
+   "result_file": "31_2.pptx"
+  },
+  "suite": "desk",
+  "kind": "办公文档",
+  "src_app": "lo_impress"
+ },
+ {
+  "id": "a097acff-6266-4291-9fbd-137af7ecd439",
+  "src": "libreoffice_impress__a097acff-6266-4291-9fbd-137af7ecd439.json",
+  "app": "lo_impress",
+  "instruction": "Could you help me save my slides as pre.pptx on the Desktop?",
+  "files": [
+   {
+    "url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_impress/a097acff-6266-4291-9fbd-137af7ecd439/Secrets-of-Monetizing-Video.pptx",
+    "name": "Secrets-of-Monetizing-Video.pptx"
+   }
+  ],
+  "grade": {
+   "func": "compare_pptx_files",
+   "expected_url": "https://huggingface.co/datasets/xlangai/ubuntu_osworld_file_cache/resolve/main/libreoffice_impress/a097acff-6266-4291-9fbd-137af7ecd439/Secrets-of-Monetizing-Video.pptx",
+   "options": {
+    "examine_shape": false
+   },
+   "result_file": "pre.pptx"
+  },
+  "suite": "desk",
+  "kind": "办公文档",
+  "src_app": "lo_impress"
+ }
+]

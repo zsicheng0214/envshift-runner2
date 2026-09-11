@@ -1,0 +1,70 @@
+name: office-run
+# 办公题(LibreOffice 文档)× 三系统。判分用 OSWorld 官方 metrics(vendored,未改一行)。
+on:
+  workflow_dispatch:
+    inputs:
+      tasks: { description: "office_tasks.json 里的序号列表(JSON 数组,1 起)", default: '[1]' }
+      oslist: { description: "runner 列表(JSON 数组)", default: '["ubuntu-24.04","macos-15","windows-2022"]' }
+      arm: { description: "openclaw | null(只验装置与判分)", default: "openclaw" }
+      model: { description: "模型名", default: "deepseek-v4-pro" }
+jobs:
+  office:
+    strategy:
+      fail-fast: false
+      matrix:
+        task: ${{ fromJSON(inputs.tasks) }}
+        os: ${{ fromJSON(inputs.oslist) }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env: { PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+
+      - name: 官方 metrics 的依赖(判分侧)
+        shell: bash          # ★Windows 默认 PowerShell,heredoc 会被当成 PS 语法报 ParserError
+        run: |
+          pip install -q -r office_requirements.txt   # 取自 OSWorld 官方 requirements,去掉 torch/easyocr 等本判据用不到的重型包
+          python - <<'EOF'
+          import sys; sys.path.insert(0,"osw_metrics_pkg")
+          for m in ("table","slides"):
+              try:
+                  __import__(f"desktop_env.evaluators.metrics.{m}", fromlist=["x"]); print(f"  {m}: 导入 OK")
+              except Exception as e:
+                  print(f"  {m}: 导入失败 {type(e).__name__}: {e}"); raise SystemExit(1)
+          EOF
+
+      - name: LibreOffice(agent 侧可用的办公工具)
+        shell: bash
+        run: |
+          case "${{ runner.os }}" in
+            Linux)   sudo apt-get update -qq && sudo apt-get install -y -qq libreoffice-calc libreoffice-impress || true ;;
+            macOS)   brew install --cask libreoffice 2>/dev/null || true ;;
+            Windows) choco install libreoffice-fresh -y --no-progress || true ;;
+          esac
+          (soffice --version || libreoffice --version || "/Applications/LibreOffice.app/Contents/MacOS/soffice" --version || "/c/Program Files/LibreOffice/program/soffice.exe" --version) 2>/dev/null | head -1 || echo "soffice 不在 PATH(agent 可改用 python 库)"
+
+      - name: OpenClaw
+        if: inputs.arm == 'openclaw'
+        run: npm install -g openclaw@2026.6.9 2>&1 | tail -1 && openclaw --version
+
+      - name: 跑题
+        shell: bash
+        env: { ENVSHIFT_API_KEY: "${{ secrets.ENVSHIFT_API_KEY }}" }
+        run: python office_run.py "${{ matrix.task }}" --arm ${{ inputs.arm }} --model "${{ inputs.model }}" 2>&1 | tail -30
+
+      - name: 打包会话
+        if: always()
+        shell: bash
+        env: { ARTIFACT_PASS: "${{ secrets.ARTIFACT_PASS }}" }
+        run: |
+          tar czf office_out.tgz office_out 2>/dev/null || true
+          OPENSSL=$(command -v openssl || echo /usr/bin/openssl)
+          [ -f office_out.tgz ] && "$OPENSSL" enc -aes-256-cbc -pbkdf2 -salt -pass env:ARTIFACT_PASS -in office_out.tgz -out office_oc.tgz.enc || true
+          rm -rf office_out office_out.tgz 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: "office-${{ matrix.os }}-t${{ matrix.task }}", path: "office_*" }

@@ -15,7 +15,7 @@ sys.path.insert(0, str(HERE))
 import gui_grade as G
 
 ap = argparse.ArgumentParser()
-ap.add_argument("task"); ap.add_argument("--arm", default="openclaw", choices=["openclaw", "null", "list"])
+ap.add_argument("task"); ap.add_argument("--arm", default="openclaw", choices=["openclaw", "gui", "null", "list"])
 ap.add_argument("--model", default="deepseek-v4-pro"); ap.add_argument("--base", default="https://api.llmgateway.io/v1")
 ap.add_argument("--timeout", type=int, default=900); ap.add_argument("--port", type=int, default=1337)
 a = ap.parse_args()
@@ -186,6 +186,13 @@ setup(task.get("setup", {}))
 res = {"rc": 0, "agent_s": 0}
 if a.arm == "openclaw":
     res = run_agent(task["instruction"])
+elif a.arm == "gui":
+    # 真 GUI 通道:同一道题,agent 只有截图和鼠标键盘,没有 shell 与文件工具
+    ta = time.time()
+    r = subprocess.run([sys.executable, str(HERE / "gui_agent_loop.py"), "--task", str(a.task), "--model", a.model,
+                        "--base", a.base, "--instruction", task["instruction"], "--outdir", str(OUTD / "gui_loop")],
+                       env=dict(os.environ), timeout=a.timeout + 300)
+    res = {"rc": r.returncode, "agent_s": int(time.time() - ta)}
 # 判分前:标签页类判据要在 Chrome 还开着时读;其余判据要先关 Chrome 让偏好落盘
 g = task["grade"]
 if g["func"] in ("is_expected_tabs",):
