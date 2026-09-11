@@ -17,7 +17,7 @@ jobs:
         task: ${{ fromJSON(inputs.tasks) }}
         os: ${{ fromJSON(inputs.oslist) }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    timeout-minutes: 90
     env: { PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' }
     steps:
       - uses: actions/checkout@v4
@@ -37,6 +37,11 @@ jobs:
             Xvfb :99 -screen 0 1920x1080x24 -auth "$HOME/.Xauthority" & sleep 3
             echo "DISPLAY=:99" >> $GITHUB_ENV; echo "XAUTHORITY=$HOME/.Xauthority" >> $GITHUB_ENV
           fi
+
+      - name: 官方 metrics 的依赖(办公文档题判分侧,与终端通道用同一套)
+        if: inputs.suite == 'gui30'
+        shell: bash
+        run: pip install -q -r office_requirements.txt
 
       - name: LibreOffice(GUI 通道跑办公文档题时要真的打开它)
         if: inputs.suite == 'gui30'
