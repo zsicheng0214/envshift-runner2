@@ -275,6 +275,18 @@ elif a.arm == "gui":
                         "--base", a.base, "--instruction", task["instruction"], "--outdir", str(OUTD / "gui_loop")],
                        env=dict(os.environ), timeout=a.timeout + 300)
     res = {"rc": r.returncode, "agent_s": int(time.time() - ta)}
+    # ★几张截图和 loop.json 必须留在 gui_out 之外:打包那步会把 gui_out 整个加密,
+    #   而「模型到底看到了什么」是判断 GUI 通道成不成立的唯一硬证据——只看「非黑像素比例」
+    #   会把「一片均匀灰的空桌面」也算成画面正常,必须能直接把图调出来看。
+    for want in (1, 2, 5, 12, 25):
+        src = OUTD / "gui_loop" / f"step{want:02d}.png"
+        if src.exists():
+            try: shutil.copy(src, pathlib.Path(f"gui_shot{want:02d}_{platform.system()}.png"))
+            except Exception as e: log("截图留存失败", want, type(e).__name__)
+    lj = OUTD / "gui_loop" / "loop.json"
+    if lj.exists():
+        try: shutil.copy(lj, pathlib.Path(f"gui_loop_{platform.system()}.json"))
+        except Exception as e: log("loop.json 留存失败", type(e).__name__)
 # 判分前:标签页类判据要在 Chrome 还开着时读;其余判据要先关 Chrome 让偏好落盘
 g = task["grade"]
 if task.get("files"):
