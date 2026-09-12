@@ -126,6 +126,34 @@ def lo_profile_arg():
     return f"-env:UserInstallation={prof.as_uri()}"
 
 
+def lo_wait_and_focus():
+    """三系统各自确认 LibreOffice 主窗口真的起来了、并且拿到了键盘焦点。自检截图证实的两个坑:
+    Windows:choco 装的 LibreOffice 首次启动先跑一个「LibreOffice Update」进度条,主窗口延迟一两分钟才出;
+            「画面非黑」判据被 runner 控制台窗口骗过——控制台本来就非黑。要按窗口标题等主窗口,再 activate 前置。
+    mac:    Popen 起的 LibreOffice 窗口可见但不是活动应用(菜单栏还是 Finder),键盘焦点不在它上——osascript activate。
+    Linux:  Xvfb 上只有它一个窗口,非黑判据够用。"""
+    if SYS == "Windows":
+        try:
+            import pyautogui
+            for i in range(90):
+                ws = [w for w in pyautogui.getAllWindows() if any(k in (w.title or "") for k in ("LibreOffice", "Calc", "Impress", "Writer")) and "Update" not in (w.title or "")]
+                if ws:
+                    try: ws[0].activate()
+                    except Exception: pass
+                    time.sleep(1); log(f"LibreOffice 主窗口已出现并前置({i*2}s): {ws[0].title[:50]}"); return True
+                time.sleep(2)
+            log("★LibreOffice 主窗口 180s 内没出现(首次启动的 Update 阶段可能更久)"); return False
+        except Exception as e:
+            log("窗口检测失败", type(e).__name__); return False
+    if SYS == "Darwin":
+        for _ in range(3):
+            subprocess.run(["osascript", "-e", 'tell application "LibreOffice" to activate'], capture_output=True); time.sleep(2)
+        front = subprocess.run(["osascript", "-e", 'tell application "System Events" to get name of first application process whose frontmost is true'], capture_output=True, text=True).stdout.strip()
+        ok = any(k in front.lower() for k in ("soffice", "libreoffice"))
+        log(f"mac 前台应用: {front or '?'} → {'焦点在 LibreOffice' if ok else '★焦点不在 LibreOffice'}"); return ok
+    return True
+
+
 def setup_docs(task):
     """办公文档题(GUI 通道):把文件下到工作目录,再用 LibreOffice 打开,让模型有界面可点。"""
     work = HOME / "office-work"; work.mkdir(parents=True, exist_ok=True)
@@ -145,6 +173,8 @@ def setup_docs(task):
         subprocess.Popen(f'start "" /MAX "{soffice_bin()}" {lo_profile_arg()} --norestore "{opened[0]}"', shell=True, env=env, stdout=logf, stderr=logf)
     else:
         subprocess.Popen([soffice_bin(), lo_profile_arg(), "--norestore", str(opened[0])], env=env, stdout=logf, stderr=logf)
+    if SYS == "Windows":
+        return lo_wait_and_focus()           # Windows 不用非黑判据(会被 runner 控制台骗过),按窗口标题等
     for i in range(60):                      # 等窗口真的画出来:靠截图里的非黑像素判断,而不是靠 sleep
         time.sleep(2)
         try:
@@ -153,7 +183,10 @@ def setup_docs(task):
             with mss.mss() as sc:
                 raw = sc.grab(sc.monitors[1]); im = Image.frombytes("RGB", raw.size, raw.rgb)
             nz = sum(1 for p in im.convert("L").getdata() if p > 8) / (im.size[0] * im.size[1])
-            if nz > 0.05: log(f"LibreOffice 窗口已出现({(i+1)*2}s,画面非黑 {nz:.2f})"); return True
+            if nz > 0.05:
+                log(f"LibreOffice 窗口已出现({(i+1)*2}s,画面非黑 {nz:.2f})")
+                if SYS == "Darwin": lo_wait_and_focus()
+                return True
         except Exception: pass
     log("SETUP-FAIL LibreOffice 窗口没出现"); return False
 
@@ -299,6 +332,7 @@ elif a.arm == "gui-selfcheck":
     ta = time.time(); time.sleep(3)
     try:
         import pyautogui
+        lo_wait_and_focus()
         # 不按 Ctrl+Home:mac 上 pyautogui 把它映射成别的组合、弹出系统 emoji 面板(自检截图证实);打开文件时活动格默认就是 A1
         pyautogui.typewrite("ENVSHIFT-SELFCHECK", interval=0.02); pyautogui.press("enter"); time.sleep(2)
         log("自检:已在 A1 写入标记")
@@ -335,6 +369,7 @@ if task.get("files"):
         try:
             import pyautogui
             # 诊断:保存到底有没有写盘——记目标文件保存前后的大小和 mtime,保存后再截一张图留存
+            lo_wait_and_focus()                  # 保存前再确认一次焦点在 LibreOffice 上
             _tgt = HOME / "office-work" / task["grade"].get("result_file", task["files"][0]["name"])
             def _stat():
                 try: st = _tgt.stat(); return f"{st.st_size}B mtime={int(st.st_mtime)}"
