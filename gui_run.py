@@ -105,6 +105,24 @@ def soffice_bin():
     return shutil.which("soffice") or shutil.which("libreoffice") or "soffice"
 
 
+# LibreOffice 首次运行的「Did you know?」弹窗和「running for the first time」信息栏会挡住界面、抢焦点,
+# 留存截图证实模型头 1~2 步都在关弹窗。用独立 profile 预置关掉,三系统同一做法(-env:UserInstallation 三系统都认)。
+LO_XCU = """<?xml version="1.0" encoding="UTF-8"?>
+<oor:items xmlns:oor="http://openoffice.org/2001/registry" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<item oor:path="/org.openoffice.Office.Common/Misc"><prop oor:name="ShowTipOfTheDay" oor:op="fuse"><value>false</value></prop></item>
+<item oor:path="/org.openoffice.Office.Common/Misc"><prop oor:name="FirstRun" oor:op="fuse"><value>false</value></prop></item>
+<item oor:path="/org.openoffice.Setup/Product"><prop oor:name="ooSetupLastVersion" oor:op="fuse"><value>24.2</value></prop></item>
+<item oor:path="/org.openoffice.Office.Common/Misc"><prop oor:name="ShowDonation" oor:op="fuse"><value>false</value></prop></item>
+</oor:items>
+"""
+
+
+def lo_profile_arg():
+    prof = HOME / "lo_profile"; (prof / "user").mkdir(parents=True, exist_ok=True)
+    (prof / "user" / "registrymodifications.xcu").write_text(LO_XCU, encoding="utf-8")
+    return f"-env:UserInstallation={prof.as_uri()}"
+
+
 def setup_docs(task):
     """办公文档题(GUI 通道):把文件下到工作目录,再用 LibreOffice 打开,让模型有界面可点。"""
     work = HOME / "office-work"; work.mkdir(parents=True, exist_ok=True)
@@ -119,7 +137,7 @@ def setup_docs(task):
         log("已就位", dest, dest.stat().st_size, "字节"); opened.append(dest)
     env = dict(os.environ); env.setdefault("DISPLAY", ":99")
     logf = open(OUTD / "soffice.log", "a")
-    subprocess.Popen([soffice_bin(), "--norestore", str(opened[0])], env=env, stdout=logf, stderr=logf)
+    subprocess.Popen([soffice_bin(), lo_profile_arg(), "--norestore", str(opened[0])], env=env, stdout=logf, stderr=logf)
     for i in range(60):                      # 等窗口真的画出来:靠截图里的非黑像素判断,而不是靠 sleep
         time.sleep(2)
         try:
