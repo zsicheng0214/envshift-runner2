@@ -83,13 +83,13 @@ jobs:
         if: inputs.channel != 'gui'
         shell: bash
         env: { ENVSHIFT_API_KEY: "${{ secrets.ENVSHIFT_API_KEY }}" }
-        run: python gui_run.py "${{ matrix.task }}" --arm ${{ inputs.arm }} --suite ${{ inputs.suite }} --model "${{ inputs.model }}" 2>&1 | tail -30
+        run: python gui_run.py "${{ matrix.task }}" --arm ${{ inputs.arm }} --suite ${{ inputs.suite }} --model "${{ inputs.model }}" 2>&1 | tee gui_log_${{ runner.os }}.txt | tail -30
 
       - name: 跑题(真 GUI 通道:截图+鼠标键盘)
         if: inputs.channel == 'gui'
         shell: bash
         env: { ENVSHIFT_API_KEY: "${{ secrets.ENVSHIFT_API_KEY }}", DISPLAY: ':99' }
-        run: python gui_run.py "${{ matrix.task }}" --arm ${{ inputs.arm }} --suite ${{ inputs.suite }} --model "${{ inputs.model }}" 2>&1 | tail -40
+        run: python gui_run.py "${{ matrix.task }}" --arm ${{ inputs.arm }} --suite ${{ inputs.suite }} --model "${{ inputs.model }}" 2>&1 | tee gui_log_${{ runner.os }}.txt | tail -40
 
       - name: 打包会话记录
         if: always()
