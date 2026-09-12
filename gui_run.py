@@ -15,7 +15,7 @@ sys.path.insert(0, str(HERE))
 import gui_grade as G
 
 ap = argparse.ArgumentParser()
-ap.add_argument("task"); ap.add_argument("--arm", default="openclaw", choices=["openclaw", "gui", "null", "list"])
+ap.add_argument("task"); ap.add_argument("--arm", default="openclaw", choices=["openclaw", "gui", "gui-selfcheck", "null", "list"])
 ap.add_argument("--model", default="deepseek-v4-pro"); ap.add_argument("--base", default="https://api.llmgateway.io/v1")
 ap.add_argument("--timeout", type=int, default=900); ap.add_argument("--port", type=int, default=1337)
 ap.add_argument("--suite", default="desk", choices=["desk", "gui30"], help="desk=15 道应用状态;gui30=30 道(含 15 道办公文档,GUI 通道用)")
@@ -113,6 +113,7 @@ LO_XCU = """<?xml version="1.0" encoding="UTF-8"?>
 <item oor:path="/org.openoffice.Office.Common/Misc"><prop oor:name="FirstRun" oor:op="fuse"><value>false</value></prop></item>
 <item oor:path="/org.openoffice.Setup/Product"><prop oor:name="ooSetupLastVersion" oor:op="fuse"><value>24.2</value></prop></item>
 <item oor:path="/org.openoffice.Office.Common/Misc"><prop oor:name="ShowDonation" oor:op="fuse"><value>false</value></prop></item>
+<item oor:path="/org.openoffice.Office.Common/Save/Document"><prop oor:name="WarnAlienFormat" oor:op="fuse"><value>false</value></prop></item>
 </oor:items>
 """
 
@@ -286,6 +287,18 @@ else:
 res = {"rc": 0, "agent_s": 0}
 if a.arm == "openclaw":
     res = run_agent(task["instruction"])
+elif a.arm == "gui-selfcheck":
+    # 装置自检,不跑模型:装置自己在 A1 写一个标记,走和真 GUI 通道完全相同的「保存→关闭→判分」,
+    # 判分后用 openpyxl 读回 A1。读得到标记 = 保存链路真写盘;读不到 = 装置问题,模型做对了也判 0。
+    ta = time.time(); time.sleep(3)
+    try:
+        import pyautogui
+        pyautogui.hotkey("ctrl", "home"); time.sleep(1)
+        pyautogui.typewrite("ENVSHIFT-SELFCHECK", interval=0.02); pyautogui.press("enter"); time.sleep(2)
+        log("自检:已在 A1 写入标记")
+    except Exception as e:
+        log("自检写入失败", type(e).__name__)
+    res = {"rc": 0, "agent_s": int(time.time() - ta)}
 elif a.arm == "gui":
     # 真 GUI 通道:同一道题,agent 只有截图和鼠标键盘,没有 shell 与文件工具
     ta = time.time()
@@ -312,7 +325,7 @@ if task.get("files"):
     # ★真 GUI 通道判分前必须先保存:模型在 LibreOffice 界面里改的东西在内存里,不保存关窗口就丢。
     #   OSWorld 原题就是判分前用 postconfig 快捷键保存的;终端通道题面明确要求 agent 自己保存所以不需要。
     #   round A 真 GUI 办公文档 45 格全 0:Linux 15 道里 0 道按过 Ctrl+S,不保存是硬伤,先修这个再看模型能做几道。
-    if a.arm == "gui":
+    if a.arm in ("gui", "gui-selfcheck"):
         try:
             import pyautogui
             # 诊断:保存到底有没有写盘——记目标文件保存前后的大小和 mtime,保存后再截一张图留存
@@ -336,6 +349,14 @@ if task.get("files"):
             log("判分前保存失败", type(e).__name__)
     soffice_stop()
     ok, why = grade_doc(task)
+    if a.arm == "gui-selfcheck":
+        try:
+            import openpyxl
+            _t = HOME / "office-work" / task["grade"].get("result_file", task["files"][0]["name"])
+            _v = openpyxl.load_workbook(_t).active["A1"].value
+            print(f"SELFCHECK A1={_v!r} → " + ("写盘成功" if _v == "ENVSHIFT-SELFCHECK" else "★没写盘,保存链路是装置问题"), flush=True)
+        except Exception as e:
+            print(f"SELFCHECK 读回失败 {type(e).__name__}: {e}", flush=True)
 elif g["func"] in ("is_expected_tabs",):
     ok, why = G.FUNCS[g["func"]](g["args"]); chrome_stop()
 else:

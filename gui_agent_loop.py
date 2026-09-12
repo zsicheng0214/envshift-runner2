@@ -121,15 +121,18 @@ for step in range(1, a.max_steps + 1):
     except Exception as e:
         log(f"第{step}步 模型调用失败 {type(e).__name__}: {str(e)[:140]}"); break
     act = parse_action(raw)
+    _r = str(raw)[:300]; blind = bool(re.search(r"(?i)cannot (view|see) images|text-based UI|no image|can't see the image|unable to (view|see) (the )?image", _r))
+    if blind: log(f"第{step}步 ★模型说看不到图: {_r[:100]}")
     if not act:
-        log(f"第{step}步 模型没给出可解析的动作: {str(raw)[:100]}"); history.append({"action": {"action": "?"}, "result": "上次输出无法解析,请只输出 JSON"}); continue
+        log(f"第{step}步 模型没给出可解析的动作: {str(raw)[:100]}"); history.append({"action": {"action": "?"}, "result": "上次输出无法解析,请只输出 JSON", "raw": _r, "blind": blind}); continue
     if act.get("action") == "done":
         log(f"第{step}步 模型认为完成:{act.get('reason','')[:80]}"); history.append({"action": act, "result": "DONE"}); break
     try: r = do(act, size)
     except Exception as e: r = f"执行失败 {type(e).__name__}: {str(e)[:80]}"
     log(f"第{step}步 {json.dumps(act, ensure_ascii=False)[:90]} → {r}")
-    history.append({"action": act, "result": r})
+    history.append({"action": act, "result": r, "raw": _r, "blind": blind})
     time.sleep(0.8)
-json.dump({"platform": platform.platform(), "model": a.model, "steps": len(history),
+nblind = sum(1 for h in history if h.get("blind"))
+json.dump({"platform": platform.platform(), "model": a.model, "steps": len(history), "blind_steps": nblind,
            "history": history}, open(OUT / "loop.json", "w"), ensure_ascii=False, indent=1)
-print(f"LOOP-DONE steps={len(history)} platform={SYS}")
+print(f"LOOP-DONE steps={len(history)} platform={SYS} blind={nblind}")

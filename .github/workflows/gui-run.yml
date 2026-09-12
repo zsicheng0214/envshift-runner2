@@ -89,7 +89,7 @@ jobs:
         if: inputs.channel == 'gui'
         shell: bash
         env: { ENVSHIFT_API_KEY: "${{ secrets.ENVSHIFT_API_KEY }}", DISPLAY: ':99' }
-        run: python gui_run.py "${{ matrix.task }}" --arm gui --suite ${{ inputs.suite }} --model "${{ inputs.model }}" 2>&1 | tail -40
+        run: python gui_run.py "${{ matrix.task }}" --arm ${{ inputs.arm }} --suite ${{ inputs.suite }} --model "${{ inputs.model }}" 2>&1 | tail -40
 
       - name: 打包会话记录
         if: always()
