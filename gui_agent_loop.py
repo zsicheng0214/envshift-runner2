@@ -25,13 +25,18 @@ SYS = platform.system()
 OUT = pathlib.Path(a.outdir); OUT.mkdir(parents=True, exist_ok=True)
 KEY = os.environ.get("ENVSHIFT_API_KEY", "")
 log = lambda *x: print("[loop]", *x, flush=True)
-
+# 启动阶段逐段打点:Windows 上有过一格循环 20 分钟一行没打就被父进程超时杀掉(连下面「平台…任务」那句都没出),
+# 卡点只能在导入或取屏幕尺寸这几步里;打点后再出问题能定位到哪一步。
+log(f"启动 python {sys.version.split()[0]} 任务 {a.task} 模型 {a.model}")
 import mss
 from PIL import Image
+log("mss / PIL 导入完成")
 import pyautogui
 pyautogui.FAILSAFE = False
+log("pyautogui 导入完成")
 
 SCREEN_W, SCREEN_H = pyautogui.size()
+log(f"屏幕 {SCREEN_W}x{SCREEN_H}")
 
 
 def shot(step):
