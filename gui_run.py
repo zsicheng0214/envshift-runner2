@@ -111,7 +111,9 @@ LO_XCU = """<?xml version="1.0" encoding="UTF-8"?>
 <oor:items xmlns:oor="http://openoffice.org/2001/registry" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 <item oor:path="/org.openoffice.Office.Common/Misc"><prop oor:name="ShowTipOfTheDay" oor:op="fuse"><value>false</value></prop></item>
 <item oor:path="/org.openoffice.Office.Common/Misc"><prop oor:name="FirstRun" oor:op="fuse"><value>false</value></prop></item>
-<item oor:path="/org.openoffice.Setup/Product"><prop oor:name="ooSetupLastVersion" oor:op="fuse"><value>24.2</value></prop></item>
+<item oor:path="/org.openoffice.Setup/Product"><prop oor:name="ooSetupLastVersion" oor:op="fuse"><value>99.9</value></prop></item>
+<item oor:path="/org.openoffice.Office.Common/Misc"><prop oor:name="ShowWhatsNew" oor:op="fuse"><value>false</value></prop></item>
+<item oor:path="/org.openoffice.Office.Common/Misc"><prop oor:name="ShowWelcomeDialog" oor:op="fuse"><value>false</value></prop></item>
 <item oor:path="/org.openoffice.Office.Common/Misc"><prop oor:name="ShowDonation" oor:op="fuse"><value>false</value></prop></item>
 <item oor:path="/org.openoffice.Office.Common/Save/Document"><prop oor:name="WarnAlienFormat" oor:op="fuse"><value>false</value></prop></item>
 </oor:items>
@@ -138,7 +140,11 @@ def setup_docs(task):
         log("已就位", dest, dest.stat().st_size, "字节"); opened.append(dest)
     env = dict(os.environ); env.setdefault("DISPLAY", ":99")
     logf = open(OUTD / "soffice.log", "a")
-    subprocess.Popen([soffice_bin(), lo_profile_arg(), "--norestore", str(opened[0])], env=env, stdout=logf, stderr=logf)
+    if SYS == "Windows":
+        # ★用 start 启动才会前置。Popen 直接起的 LibreOffice 窗口留在 runner 控制台后面,pyautogui 的键全打到控制台上(自检截图证实)。
+        subprocess.Popen(f'start "" /MAX "{soffice_bin()}" {lo_profile_arg()} --norestore "{opened[0]}"', shell=True, env=env, stdout=logf, stderr=logf)
+    else:
+        subprocess.Popen([soffice_bin(), lo_profile_arg(), "--norestore", str(opened[0])], env=env, stdout=logf, stderr=logf)
     for i in range(60):                      # 等窗口真的画出来:靠截图里的非黑像素判断,而不是靠 sleep
         time.sleep(2)
         try:
@@ -293,7 +299,7 @@ elif a.arm == "gui-selfcheck":
     ta = time.time(); time.sleep(3)
     try:
         import pyautogui
-        pyautogui.hotkey("ctrl", "home"); time.sleep(1)
+        # 不按 Ctrl+Home:mac 上 pyautogui 把它映射成别的组合、弹出系统 emoji 面板(自检截图证实);打开文件时活动格默认就是 A1
         pyautogui.typewrite("ENVSHIFT-SELFCHECK", interval=0.02); pyautogui.press("enter"); time.sleep(2)
         log("自检:已在 A1 写入标记")
     except Exception as e:
