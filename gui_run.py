@@ -6,7 +6,7 @@ Chrome 用远程调试端口 1337 起(三系统同一接口),初始状态(开标
 全部通过这个端口和本地文件完成,不依赖任何 Linux 专有工具。
 用法: gui_run.py <task_id 或 序号> [--arm openclaw|null|list] [--model ...] [--timeout 900]
 """
-import argparse, json, os, pathlib, platform, shutil, subprocess, sys, time, urllib.request
+import argparse, json, os, pathlib, platform, re, shutil, subprocess, sys, time, urllib.request
 for _st in (sys.stdout, sys.stderr):
     try: _st.reconfigure(encoding="utf-8", errors="replace")
     except Exception: pass
@@ -122,27 +122,80 @@ LO_XCU = """<?xml version="1.0" encoding="UTF-8"?>
 
 def lo_profile_arg():
     prof = HOME / "lo_profile"; (prof / "user").mkdir(parents=True, exist_ok=True)
-    (prof / "user" / "registrymodifications.xcu").write_text(LO_XCU, encoding="utf-8")
+    xcu = prof / "user" / "registrymodifications.xcu"
+    xcu.write_text(LO_XCU, encoding="utf-8", newline="\n")
+    log(f"LibreOffice 预置 profile: {prof.as_uri()} (xcu {xcu.stat().st_size}B)")
     return f"-env:UserInstallation={prof.as_uri()}"
 
 
+# LibreOffice 默认 profile 的位置,三系统各不同。只用来判别「它到底用没用我们预置的那份」。
+LO_DEFAULT_PROFILE = {"Windows": pathlib.Path(os.environ.get("APPDATA") or (HOME / "AppData" / "Roaming")) / "LibreOffice" / "4" / "user",
+                      "Darwin": HOME / "Library" / "Application Support" / "LibreOffice" / "4" / "user",
+                      "Linux": HOME / ".config" / "libreoffice" / "4" / "user"}
+
+
+def lo_profile_evidence():
+    """LibreOffice 关掉之后回答一个判别问题:它到底用没用我们预置的 profile?
+    用了 → 退出时会把 user/registrymodifications.xcu 整个重写(从 1.3KB 涨到几十 KB、几十项),默认 profile 目录不会出现;
+    没用 → 我们的 xcu 纹丝不动,默认 profile 目录(三系统位置不同)被它建出来。
+    起因:Windows 自检截图里「Welcome to LibreOffice!」首启向导盖在文档上,A1 没写进去。按 26.2 源码(unotools VersionConfig.cxx)
+    这个向导只在 ooSetupLastVersion 键不存在时才弹,而预置里写了 99.9——所以先判 profile 有没有被读,不猜。"""
+    xcu = HOME / "lo_profile" / "user" / "registrymodifications.xcu"
+    try:
+        txt = xcu.read_text(encoding="utf-8", errors="replace"); items = txt.count("<item ")
+        m = re.search(r'ooSetupLastVersion"[^>]*>\s*<value>([^<]*)</value>', txt)
+        log(f"预置 profile 收工: xcu {xcu.stat().st_size}B / {items} 项 / ooSetupLastVersion={m.group(1) if m else '缺'} → "
+            + ("LibreOffice 读了并重写过" if items > 12 else "★纹丝不动,LibreOffice 没读这份 profile"))
+    except Exception as e:
+        log("预置 profile 收工: 读不到", type(e).__name__)
+    d = LO_DEFAULT_PROFILE.get(SYS); dx = (d / "registrymodifications.xcu") if d else None
+    if d:
+        log(f"默认 profile {d}: " + (f"★存在(xcu {dx.stat().st_size}B)= LibreOffice 用的是默认 profile" if dx.exists()
+                                    else ("目录在但没有 xcu" if d.exists() else "不存在(没用默认 profile)")))
+    try:
+        keep = pathlib.Path(f"gui_state_{platform.system()}"); keep.mkdir(exist_ok=True)
+        if xcu.exists(): shutil.copy(xcu, keep / "lo_registrymodifications.xcu")
+        if dx and dx.exists(): shutil.copy(dx, keep / "lo_default_registrymodifications.xcu")
+    except Exception as e:
+        log("profile 留存失败", type(e).__name__)
+
+
 def lo_wait_and_focus():
-    """三系统各自确认 LibreOffice 主窗口真的起来了、并且拿到了键盘焦点。自检截图证实的两个坑:
+    """三系统各自确认 LibreOffice 文档窗口真的起来了、并且拿到了键盘焦点。自检截图证实的坑:
     Windows:choco 装的 LibreOffice 首次启动先跑一个「LibreOffice Update」进度条,主窗口延迟一两分钟才出;
-            「画面非黑」判据被 runner 控制台窗口骗过——控制台本来就非黑。要按窗口标题等主窗口,再 activate 前置。
+            「画面非黑」判据被 runner 控制台窗口骗过——控制台本来就非黑。要按窗口标题等文档窗口,再 activate 前置。
+            ★只按「标题含 LibreOffice」等,会把模态的「Welcome to LibreOffice!」首启向导当成主窗口前置,键盘输入全进向导
+            (第三次自检截图证实)。文档窗口标题形如「x.xlsx — LibreOffice Calc」,弹窗单独识别、Esc 关掉、记日志。
     mac:    Popen 起的 LibreOffice 窗口可见但不是活动应用(菜单栏还是 Finder),键盘焦点不在它上——osascript activate。
     Linux:  Xvfb 上只有它一个窗口,非黑判据够用。"""
     if SYS == "Windows":
         try:
             import pyautogui
+            DOC = ("LibreOffice Calc", "LibreOffice Impress", "LibreOffice Writer")
+            POPUP = ("Welcome to LibreOffice", "Tip of the Day", "What's New", "Keep Current Format", "Keep current format")
+            closed = 0
             for i in range(90):
-                ws = [w for w in pyautogui.getAllWindows() if any(k in (w.title or "") for k in ("LibreOffice", "Calc", "Impress", "Writer")) and "Update" not in (w.title or "")]
-                if ws:
-                    try: ws[0].activate()
+                allw = [w for w in pyautogui.getAllWindows() if any(k in (w.title or "") for k in ("LibreOffice", "Calc", "Impress", "Writer")) and "Update" not in (w.title or "")]
+                pop = [w for w in allw if any(k in (w.title or "") for k in POPUP)]
+                doc = [w for w in allw if any(k in (w.title or "") for k in DOC)]
+                if pop:
+                    # 弹窗是模态的,盖在文档窗口上。预置 profile 本该关掉它,真弹出来 = profile 没生效——先关掉保住这一格,
+                    # 原因由 lo_profile_evidence() 单独判别,不在这里猜。
+                    closed += 1; log(f"★LibreOffice 弹窗挡在前面: {[w.title[:40] for w in pop]} → Esc 关闭(第 {closed} 次)")
+                    try: pop[0].activate()
                     except Exception: pass
-                    time.sleep(1); log(f"LibreOffice 主窗口已出现并前置({i*2}s): {ws[0].title[:50]}"); return True
+                    time.sleep(0.5); pyautogui.press("esc"); time.sleep(1.5)
+                    if closed >= 3:                      # Esc 关不掉就点它右上角的 ×
+                        try: w = pop[0]; pyautogui.click(w.left + w.width - 18, w.top + 16); time.sleep(1.5)
+                        except Exception: pass
+                    continue
+                if doc:
+                    try: doc[0].activate()
+                    except Exception: pass
+                    time.sleep(1); log(f"LibreOffice 文档窗口已出现并前置({i*2}s): {doc[0].title[:50]}" + (f",此前关掉 {closed} 个弹窗" if closed else "")); return True
+                if allw and i % 10 == 9: log(f"等文档窗口中({i*2}s),现有 LibreOffice 窗口: {[w.title[:40] for w in allw][:4]}")
                 time.sleep(2)
-            log("★LibreOffice 主窗口 180s 内没出现(首次启动的 Update 阶段可能更久)"); return False
+            log("★LibreOffice 文档窗口 180s 内没出现(首次启动的 Update 阶段可能更久)"); return False
         except Exception as e:
             log("窗口检测失败", type(e).__name__); return False
     if SYS == "Darwin":
@@ -170,7 +223,9 @@ def setup_docs(task):
     logf = open(OUTD / "soffice.log", "a")
     if SYS == "Windows":
         # ★用 start 启动才会前置。Popen 直接起的 LibreOffice 窗口留在 runner 控制台后面,pyautogui 的键全打到控制台上(自检截图证实)。
-        subprocess.Popen(f'start "" /MAX "{soffice_bin()}" {lo_profile_arg()} --norestore "{opened[0]}"', shell=True, env=env, stdout=logf, stderr=logf)
+        cmd = f'start "" /MAX "{soffice_bin()}" {lo_profile_arg()} --norestore "{opened[0]}"'
+        log("启动命令:", cmd)
+        subprocess.Popen(cmd, shell=True, env=env, stdout=logf, stderr=logf)
     else:
         subprocess.Popen([soffice_bin(), lo_profile_arg(), "--norestore", str(opened[0])], env=env, stdout=logf, stderr=logf)
     if SYS == "Windows":
@@ -389,6 +444,7 @@ if task.get("files"):
         except Exception as e:
             log("判分前保存失败", type(e).__name__)
     soffice_stop()
+    lo_profile_evidence()                   # 关掉之后才能判:它用的是预置 profile 还是默认 profile
     ok, why = grade_doc(task)
     if a.arm == "gui-selfcheck":
         try:
