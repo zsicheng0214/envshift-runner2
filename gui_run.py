@@ -116,8 +116,21 @@ LO_XCU = """<?xml version="1.0" encoding="UTF-8"?>
 <item oor:path="/org.openoffice.Office.Common/Misc"><prop oor:name="ShowWelcomeDialog" oor:op="fuse"><value>false</value></prop></item>
 <item oor:path="/org.openoffice.Office.Common/Misc"><prop oor:name="ShowDonation" oor:op="fuse"><value>false</value></prop></item>
 <item oor:path="/org.openoffice.Office.Common/Save/Document"><prop oor:name="WarnAlienFormat" oor:op="fuse"><value>false</value></prop></item>
+<item oor:path="/org.openoffice.Office.Update/Update"><prop oor:name="Enabled" oor:op="fuse"><value>false</value></prop></item>
 </oor:items>
 """
+# ★最后一项 Update/Enabled=false 是 Windows 第四次自检坐实的:Windows 版 LibreOffice(choco 26.2.3)带 MAR 自动更新器,
+#   首次启动就把自己更新掉、弹「LibreOffice Update — Please wait while we update your installation」、然后重启;
+#   重启的命令行由 updater.cxx createCommandLine() 用 rtl_getAppCommandArg 重拼,**-env: 引导参数不在其中**,
+#   于是更新后的实例用的是默认 profile(收工件:预置 xcu 里 UpdateRunning=true / OfficeRestartInProgress=true / OldBuildID=旧构建号,
+#   默认 profile 141KB、LastCompatibilityCheckID 是另一个构建号),首启向导「Welcome to LibreOffice!」随之弹出。
+#   app.cxx 里整段更新逻辑由 Office.Update/Update/Enabled 门控,关掉即不更新、不重启、不丢 profile。
+
+
+# LibreOffice 默认 profile 的位置,三系统各不同。用来判别「它到底用没用我们预置的那份」,也顺手预置一份同样的种子。
+LO_DEFAULT_PROFILE = {"Windows": pathlib.Path(os.environ.get("APPDATA") or (HOME / "AppData" / "Roaming")) / "LibreOffice" / "4" / "user",
+                      "Darwin": HOME / "Library" / "Application Support" / "LibreOffice" / "4" / "user",
+                      "Linux": HOME / ".config" / "libreoffice" / "4" / "user"}
 
 
 def lo_profile_arg():
@@ -125,13 +138,16 @@ def lo_profile_arg():
     xcu = prof / "user" / "registrymodifications.xcu"
     xcu.write_text(LO_XCU, encoding="utf-8", newline="\n")
     log(f"LibreOffice 预置 profile: {prof.as_uri()} (xcu {xcu.stat().st_size}B)")
+    # 默认 profile 也放一份同样的种子(只在它还不存在时):万一哪条路径又绕开 -env:(Windows 更新器重启就是这么丢的),
+    # 落到默认 profile 的实例也不弹向导、不弹格式警告。用没用它,收工时按 xcu 项数看得出来(种子只有 9 项)。
+    d = LO_DEFAULT_PROFILE.get(SYS)
+    try:
+        if d and not (d / "registrymodifications.xcu").exists():
+            d.mkdir(parents=True, exist_ok=True); (d / "registrymodifications.xcu").write_text(LO_XCU, encoding="utf-8", newline="\n")
+            log(f"默认 profile 也预置了同样的种子: {d}")
+    except Exception as e:
+        log("默认 profile 预置失败", type(e).__name__)
     return f"-env:UserInstallation={prof.as_uri()}"
-
-
-# LibreOffice 默认 profile 的位置,三系统各不同。只用来判别「它到底用没用我们预置的那份」。
-LO_DEFAULT_PROFILE = {"Windows": pathlib.Path(os.environ.get("APPDATA") or (HOME / "AppData" / "Roaming")) / "LibreOffice" / "4" / "user",
-                      "Darwin": HOME / "Library" / "Application Support" / "LibreOffice" / "4" / "user",
-                      "Linux": HOME / ".config" / "libreoffice" / "4" / "user"}
 
 
 def lo_profile_evidence():
@@ -141,17 +157,24 @@ def lo_profile_evidence():
     起因:Windows 自检截图里「Welcome to LibreOffice!」首启向导盖在文档上,A1 没写进去。按 26.2 源码(unotools VersionConfig.cxx)
     这个向导只在 ooSetupLastVersion 键不存在时才弹,而预置里写了 99.9——所以先判 profile 有没有被读,不猜。"""
     xcu = HOME / "lo_profile" / "user" / "registrymodifications.xcu"
+    def val(txt, name):
+        m = re.search(name + r'"[^>]*>\s*<value>([^<]*)</value>', txt); return m.group(1) if m else "缺"
     try:
         txt = xcu.read_text(encoding="utf-8", errors="replace"); items = txt.count("<item ")
-        m = re.search(r'ooSetupLastVersion"[^>]*>\s*<value>([^<]*)</value>', txt)
-        log(f"预置 profile 收工: xcu {xcu.stat().st_size}B / {items} 项 / ooSetupLastVersion={m.group(1) if m else '缺'} → "
+        log(f"预置 profile 收工: xcu {xcu.stat().st_size}B / {items} 项 / ooSetupLastVersion={val(txt, 'ooSetupLastVersion')} → "
             + ("LibreOffice 读了并重写过" if items > 12 else "★纹丝不动,LibreOffice 没读这份 profile"))
+        # 更新器有没有跑过:UpdateRunning / OldBuildID / OfficeRestartInProgress 三个键是它留下的脚印(第四次自检坐实的机制)
+        log(f"更新器脚印: UpdateRunning={val(txt, 'UpdateRunning')} OldBuildID={val(txt, 'OldBuildID')[:12]} OfficeRestartInProgress={val(txt, 'OfficeRestartInProgress')}"
+            + (" → ★更新器跑了并重启过" if val(txt, "UpdateRunning") == "true" or val(txt, "OfficeRestartInProgress") == "true" else " → 没更新没重启"))
     except Exception as e:
         log("预置 profile 收工: 读不到", type(e).__name__)
     d = LO_DEFAULT_PROFILE.get(SYS); dx = (d / "registrymodifications.xcu") if d else None
     if d:
-        log(f"默认 profile {d}: " + (f"★存在(xcu {dx.stat().st_size}B)= LibreOffice 用的是默认 profile" if dx.exists()
-                                    else ("目录在但没有 xcu" if d.exists() else "不存在(没用默认 profile)")))
+        if dx.exists():
+            n = dx.read_text(encoding="utf-8", errors="replace").count("<item ")
+            log(f"默认 profile {d}: xcu {dx.stat().st_size}B / {n} 项 → " + ("只有我们预置的种子,LibreOffice 没用它" if n <= 9 else "★被 LibreOffice 重写过 = 有实例用了默认 profile"))
+        else:
+            log(f"默认 profile {d}: " + ("目录在但没有 xcu" if d.exists() else "不存在(没用默认 profile)"))
     try:
         keep = pathlib.Path(f"gui_state_{platform.system()}"); keep.mkdir(exist_ok=True)
         if xcu.exists(): shutil.copy(xcu, keep / "lo_registrymodifications.xcu")
