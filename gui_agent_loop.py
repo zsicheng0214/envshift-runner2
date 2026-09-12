@@ -76,8 +76,24 @@ def call_model(history, img_b64, img_size, instruction):
     body = {"model": a.model, "messages": msgs, "max_completion_tokens": 300}
     req = urllib.request.Request(a.base.rstrip("/") + "/chat/completions", data=json.dumps(body).encode(),
                                  headers={"Content-Type": "application/json", "Authorization": "Bearer " + KEY})
-    with urllib.request.urlopen(req, timeout=180) as r:
-        return json.load(r)["choices"][0]["message"]["content"]
+    # ★网关限流(429)和连接被掐断是**通道故障,不是模型的回答**。
+    #   原来这里一次失败就把整轮 break 掉、记成 resolved=0,看起来和「模型做错了」一模一样——
+    #   噪声底线实验里 6 格就是这么被毁的(第 1 步 429,agent 一张截图都没看到)。
+    #   改成退避重试;重试仍失败才抛出,由调用方标成通道故障而不是模型失败。
+    last = None
+    for attempt in range(5):
+        try:
+            with urllib.request.urlopen(req, timeout=180) as r:
+                return json.load(r)["choices"][0]["message"]["content"]
+        except Exception as e:
+            last = e
+            code = getattr(e, "code", None)
+            transient = code in (429, 500, 502, 503, 504) or isinstance(e, urllib.error.URLError) or "timed out" in str(e)
+            if not transient or attempt == 4: raise
+            wait = min(60, 5 * (2 ** attempt))
+            log(f"  通道故障 {type(e).__name__} {code or ''},{wait}s 后重试(第 {attempt+1}/5 次)")
+            time.sleep(wait)
+    raise last
 
 
 def parse_action(txt):
@@ -119,12 +135,15 @@ if not KEY: sys.exit("NO-API-KEY")
 instruction = a.instruction or "(未提供任务文本)"
 log(f"平台 {SYS} 屏幕 {SCREEN_W}x{SCREEN_H} 模型 {a.model} 任务:{instruction[:70]}")
 history = []
+channel_fail = None          # 非 None 表示这一轮是通道故障(网关限流/连接断),不是模型的成绩
 for step in range(1, a.max_steps + 1):
     size, b64, path = shot(step)
     try:
         raw = call_model(history, b64, size, instruction)
     except Exception as e:
-        log(f"第{step}步 模型调用失败 {type(e).__name__}: {str(e)[:140]}"); break
+        # 重试完仍失败 = 通道故障。必须和「模型答错」分开标:这一轮根本没跑成,不能当成模型的成绩记 0 分。
+        channel_fail = f"{type(e).__name__} {getattr(e, 'code', '') or ''}".strip()
+        log(f"第{step}步 ★通道故障(已重试 5 次仍失败){channel_fail}: {str(e)[:140]}"); break
     act = parse_action(raw)
     _r = str(raw)[:300]; blind = bool(re.search(r"(?i)cannot (view|see) images|text-based UI|no image|can't see the image|unable to (view|see) (the )?image", _r))
     if blind: log(f"第{step}步 ★模型说看不到图: {_r[:100]}")
@@ -139,5 +158,7 @@ for step in range(1, a.max_steps + 1):
     time.sleep(0.8)
 nblind = sum(1 for h in history if h.get("blind"))
 json.dump({"platform": platform.platform(), "model": a.model, "steps": len(history), "blind_steps": nblind,
-           "history": history}, open(OUT / "loop.json", "w"), ensure_ascii=False, indent=1)
-print(f"LOOP-DONE steps={len(history)} platform={SYS} blind={nblind}")
+           "channel_fail": channel_fail, "history": history}, open(OUT / "loop.json", "w"), ensure_ascii=False, indent=1)
+# ★channel_fail 一定要打进 LOOP-DONE:收割据此把「通道故障」和「模型没做出来」分开,
+#   否则两者都长成 resolved=0,只能靠步数猜,而「跑到第 3 步才被限流」是猜不出来的。
+print(f"LOOP-DONE steps={len(history)} platform={SYS} blind={nblind} channel_fail={channel_fail or 'none'}")
