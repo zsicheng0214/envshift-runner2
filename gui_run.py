@@ -290,7 +290,18 @@ elif a.arm == "gui":
 # 判分前:标签页类判据要在 Chrome 还开着时读;其余判据要先关 Chrome 让偏好落盘
 g = task["grade"]
 if task.get("files"):
-    # 办公文档题:判分走 OSWorld 官方 metrics(与终端通道同一套),先关掉 LibreOffice 让它落盘
+    # 办公文档题:判分走 OSWorld 官方 metrics(与终端通道同一套)。
+    # ★真 GUI 通道判分前必须先保存:模型在 LibreOffice 界面里改的东西在内存里,不保存关窗口就丢。
+    #   OSWorld 原题就是判分前用 postconfig 快捷键保存的;终端通道题面明确要求 agent 自己保存所以不需要。
+    #   round A 真 GUI 办公文档 45 格全 0:Linux 15 道里 0 道按过 Ctrl+S,不保存是硬伤,先修这个再看模型能做几道。
+    if a.arm == "gui":
+        try:
+            import pyautogui
+            pyautogui.hotkey("command" if SYS == "Darwin" else "ctrl", "s"); time.sleep(3)
+            pyautogui.press("enter"); time.sleep(3)      # 保存 xlsx/pptx 时 LibreOffice 会问「保持当前格式?」,回车 = 保持
+            log("判分前已发保存快捷键(恢复 OSWorld postconfig 行为)")
+        except Exception as e:
+            log("判分前保存失败", type(e).__name__)
     soffice_stop()
     ok, why = grade_doc(task)
 elif g["func"] in ("is_expected_tabs",):

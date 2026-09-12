@@ -57,7 +57,7 @@ ACTIONS = """你只能输出一个 JSON 对象,不要有其他文字。可用动
 {"action":"scroll","dx":0,"dy":-3}                             滚动
 {"action":"wait","seconds":2}                                  等待
 {"action":"done","reason":"为什么认为完成了"}                  任务完成
-坐标以你看到的截图为准(左上角为原点)。每次只做一个动作。"""
+坐标以你看到的截图为准(左上角为原点)。每次只做一个动作。只输出 JSON,不要输出任何工具调用标记或其他文字。"""
 
 
 def call_model(history, img_b64, img_size, instruction):
@@ -76,7 +76,9 @@ def call_model(history, img_b64, img_size, instruction):
 
 
 def parse_action(txt):
-    m = re.search(r"\{[\s\S]*\}", txt or "")
+    # deepseek 有时吐工具调用标记(如 <｜｜DSML｜｜ calls>)而不是纯 JSON,round A 每道浪费 1~4 步;剥掉标记再找 JSON
+    txt = re.sub(r"<｜｜[^>]*>|<\|\|[^>]*>", "", txt or "")
+    m = re.search(r"\{[\s\S]*\}", txt)
     if not m: return None
     try: return json.loads(m.group(0))
     except Exception:
