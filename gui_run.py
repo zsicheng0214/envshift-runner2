@@ -297,8 +297,22 @@ if task.get("files"):
     if a.arm == "gui":
         try:
             import pyautogui
+            # 诊断:保存到底有没有写盘——记目标文件保存前后的大小和 mtime,保存后再截一张图留存
+            _tgt = HOME / "office-work" / task["grade"].get("result_file", task["files"][0]["name"])
+            def _stat():
+                try: st = _tgt.stat(); return f"{st.st_size}B mtime={int(st.st_mtime)}"
+                except Exception as e: return f"stat失败 {type(e).__name__}"
+            log("保存前目标文件:", _stat())
             pyautogui.hotkey("command" if SYS == "Darwin" else "ctrl", "s"); time.sleep(3)
             pyautogui.press("enter"); time.sleep(3)      # 保存 xlsx/pptx 时 LibreOffice 会问「保持当前格式?」,回车 = 保持
+            log("保存后目标文件:", _stat())
+            try:
+                import mss
+                from PIL import Image
+                with mss.mss() as sc:
+                    raw = sc.grab(sc.monitors[1]); Image.frombytes("RGB", raw.size, raw.rgb).save(f"gui_shot_aftersave_{platform.system()}.png")
+            except Exception as e:
+                log("保存后截图失败", type(e).__name__)
             log("判分前已发保存快捷键(恢复 OSWorld postconfig 行为)")
         except Exception as e:
             log("判分前保存失败", type(e).__name__)
